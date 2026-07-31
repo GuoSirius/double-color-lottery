@@ -51,6 +51,17 @@ e822d8d docs: 补充 py 与 node 版等效性报告
 - `py_compile` 全通过；Node `node --check` 通过。
 - py 本地服务 smoke test 通过：`/api/trend`、非法 `?count=`、非法 backtest periods、非法 generate count、`/favicon.ico`、`/favicon.svg`、根目录 `index.html` 均正常。
 
+## 5. 鸿蒙工程适配 DevEco 6.1.1.300 / SDK 6.1.1(24)
+
+- 用户安装 DevEco Studio 6.1.1.300 后打开 `harmony/` 报「工程同步失败」，且 Signing Configs 不显示。
+- 根因：该 DevEco 版本配套 **HarmonyOS SDK 6.1.1 (API 24)**，工程仍使用旧 `compatibleSdkVersion 5.0.0(12)` 且缺少 Hvigor 构建脚本 `hvigorfile.ts`。
+- 修复：
+  - `harmony/build-profile.json5`：补齐 `compileSdkVersion`/`compatibleSdkVersion`/`targetSdkVersion`，全部对齐 `6.1.1(24)`。
+  - 新增 `harmony/hvigorfile.ts`（应用级）与 `harmony/entry/hvigorfile.ts`（模块级）。
+  - `harmony/.gitignore`：忽略 `.idea/`、`*.iml`、`local.properties`、`oh-package-lock.json5`。
+  - `harmony/README.md`：更新 DevEco 版本要求与 Sync 失败 FAQ。
+- 提交：`8eec1e0`
+
 ## 待办 / 注意
 
-- `git push origin main` 因无头环境无凭据失败（`/dev/tty` 不存在）。请在本机或带 PAT 的环境执行推送。
+- `git push origin main` 因无头环境无凭据/网络 reset 失败。请在本机或带 PAT 的环境执行推送。
