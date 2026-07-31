@@ -20,10 +20,12 @@
 |------|------|-----------|
 | **Node.js ≥ 24** | 跑打包命令用的运行环境（npm 会跟着一起装好） | https://nodejs.org （选 LTS 最新版，安装时一路下一步） |
 | **Git** | 一般你已经有了 | https://git-scm.com |
-| **安卓：Android Studio** | 用来编译和导出安卓安装包 | https://developer.android.com/studio |
+| **安卓：Android Studio** | 用来编译和导出安卓安装包 | https://developer.android.google.cn/studio （国内镜像，比国际版 `developer.android.com` 更易打开） |
 | **iPhone（可选）：Mac 电脑 + Xcode** | 苹果只允许在 Mac 上编 iOS，且需 $99/年 开发者账号 | Mac App Store 搜 Xcode |
 
 > 小提示：「终端 / 命令行」在 Windows 上叫 **PowerShell** 或 **命令提示符**；Mac 上叫 **终端(Terminal)**。下文所有命令都在**项目根目录或 `app/` 目录**里敲。
+
+> 🌏 **国内网络特别提醒（重要！）**：你在中国大陆，`developer.android.com`、`dl.google.com`、`registry.npmjs.org` 等**国际域名经常被墙或极慢**，下面打包过程里三处会受影响（Android Studio 下载、`npm install`、Gradle/SDK 下载）。请提前按文末「六（附）」里的镜像方案处理，否则会卡很久甚至失败。
 
 ---
 
@@ -39,7 +41,11 @@ cd app
 ```bash
 npm install
 ```
-- 会联网下载一堆东西，**第一次可能要几分钟**，保持网络畅通。
+- 会联网下载一堆东西，**第一次可能要几分钟**。**国内用户建议先切淘宝镜像源**（见文末「六（附）」），否则可能卡很久：
+  ```bash
+  npm config set registry https://registry.npmmirror.com
+  ```
+- 切完源再 `npm install`，速度会快很多。
 - 成功后 `app/` 里会多出一个 `node_modules/` 文件夹（不用管它）。
 
 ### 第 3 步：把网站页面同步进 App
@@ -65,7 +71,7 @@ npx cap sync
 ```bash
 npx cap open android
 ```
-- 自动打开 Android Studio。第一次打开会**自动下载 Gradle 和安卓 SDK**，可能要等很久（十几分钟都正常），别关窗口。
+- 自动打开 Android Studio。第一次打开会**自动下载 Gradle 和安卓 SDK**，可能要等很久（十几分钟都正常），别关窗口。若长时间卡死不动，见文末「六（附）」的 Gradle/SDK 镜像应对。
 
 ### 第 7 步：导出安装包（APK）
 在 Android Studio 里：
@@ -128,11 +134,40 @@ npx cap sync                        # 第三步：同步进原生工程
 
 | 现象 | 处理 |
 |------|------|
-| `npm install` 卡住/很慢 | 保持联网，耐心等；公司网络可换手机热点 |
+| `npm install` 卡住/很慢 | **先切淘宝镜像源**：`npm config set registry https://registry.npmmirror.com`，再 `npm install`；公司网络可换手机热点 |
 | `npx cap` 提示找不到命令 | 确认在 `app/` 目录、且 `npm install` 已完成 |
 | Android Studio 一直「Building / Indexing」 | 首次下载 SDK/Gradle，正常现象，等它转完 |
 | 手机装不上 APK | 允许「未知来源」；或改用 Android Studio 直接 Run 到手机 |
 | App 打开后白屏 | 检查手机能否访问 `ssq-cloudflare-em8.pages.dev`（网站本身要能打开） |
+
+---
+
+## 六（附）、国内网络不通的完整解决办法（中国大陆必看）
+
+你在中国大陆，下面这些**国际域名经常被墙或极慢**，按本文档操作时会卡住。逐条对照处理：
+
+### 1. Android Studio 下载慢 / 打不开
+- 国际版 `https://developer.android.com/studio` 在国内常访问失败。
+- **改用中国官方镜像**：👉 https://developer.android.google.cn/studio （界面中文、内容一致、通常能正常下载）。
+- 若「下载」按钮点了也卡（个别地区 `dl.google.com` CDN 抽风），用**迅雷 / IDM** 等多线程下载器，或搜「Android Studio 国内镜像下载」。
+
+### 2. npm install 卡住 / 超时
+- 先把 npm 源切成淘宝镜像（国内快很多），**再**装包：
+  ```bash
+  npm config set registry https://registry.npmmirror.com
+  npm install
+  ```
+- 之后所有 `npx` 命令也走这个源，速度正常。
+
+### 3. Android Studio 打开后 Gradle / SDK 下载卡死
+- 首次打开 `app/android` 项目时，Android Studio 会自动下载 **Gradle** 和 **Android SDK**，这一步可能转圈十几分钟。
+- 轻微卡顿是正常，耐心等；若长时间（半小时以上）不动，可搜「Gradle 国内镜像」「Android SDK 国内镜像」配置后再重试。
+- 不想等？可改用公司/手机热点网络，有时比校园网/企业网更顺。
+
+### 4. 其它国际资源
+- 文档里若还有指向 `*.google.com`、`github.com` 的下载，遇到打不开就用对应国内镜像（如 `google.cn` 系列、`npmmirror`、`gitclone.com` 等）替代。
+
+> 提示：以上只是**下载/联网**层面的问题。代码、命令本身都没问题，网络通了照着做就能跑通。
 
 ---
 
