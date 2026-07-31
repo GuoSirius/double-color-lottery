@@ -76,6 +76,17 @@ console.log("\n[3] /api/backtest");
   ok("含 roi 字段", typeof r.roi === "number");
   ok("cost = periods*count*2", r.total_cost === r.periods_tested * r.count_per_period * 2);
 }
+{
+  // 指定 periods 应被后端采纳（回测期数越多，覆盖的历史越完整）
+  const small = await resJson(await backtestFn(ctx({ strategy:"random", count:5, periods:60 })));
+  const big = await resJson(await backtestFn(ctx({ strategy:"random", count:5, periods:150 })));
+  ok("periods 参数生效(small<=60)", small.periods_tested <= 60, `got ${small.periods_tested}`);
+  ok("periods 参数生效(big<=150)", big.periods_tested <= 150, `got ${big.periods_tested}`);
+  ok("不同 periods 产生不同样本量", big.periods_tested > small.periods_tested, `${small.periods_tested} vs ${big.periods_tested}`);
+  // 越界 periods 应被夹紧到 [20,400]
+  const capped = await resJson(await backtestFn(ctx({ strategy:"random", count:5, periods:99999 })));
+  ok("periods 越界被夹紧到 400 以内", capped.periods_tested <= 400, `got ${capped.periods_tested}`);
+}
 
 console.log("\n[4] /api/trend");
 {
