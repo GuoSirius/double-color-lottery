@@ -67,17 +67,31 @@
   .collapsible.collapsed .chev { transform: rotate(-90deg); }
   .collapsible.collapsed .collapsible-body { display: none; }
 
-  /* 移动端粘性生成按钮（PC 隐藏） */
-  .gen-fab { display: none; }
+  /* 移动端底部固定操作栏（生成/回测/复制，PC 隐藏） */
+  .mobile-bar { display: none; }
   @media (max-width: 860px) {
-    .gen-fab {
-      display: block; position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
-      z-index: 50; padding: 14px 30px; border: none; border-radius: 999px; cursor: pointer;
-      font-size: 15px; font-weight: 800; letter-spacing: 2px; color: #fff;
-      background: linear-gradient(135deg, var(--red), var(--blue)); box-shadow: var(--shadow);
+    /* 顶部控件栏里被底部栏代劳的动作按钮在移动端隐藏，避免重复 */
+    #genBtn, #copyBtn, #btBtn { display: none; }
+    .mobile-bar {
+      display: flex; gap: 10px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+      padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+      backdrop-filter: blur(18px) saturate(160%); -webkit-backdrop-filter: blur(18px) saturate(160%);
+      border-top: 1px solid var(--border); box-shadow: 0 -8px 24px rgba(0,0,0,.18);
     }
-    .gen-fab:disabled { opacity: .6; cursor: progress; }
-    .wrap { padding-bottom: 96px; }
+    .mbtn {
+      flex: 1; padding: 13px 6px; border: 1px solid var(--border); border-radius: 14px; cursor: pointer;
+      background: var(--panel-strong); color: var(--text); font-size: 14px; font-weight: 700;
+      transition: transform .15s, background .2s; white-space: nowrap;
+    }
+    .mbtn:active { transform: scale(.97); }
+    .mbtn:disabled { opacity: .55; cursor: progress; }
+    .mbtn-primary {
+      flex: 1.35; color: #fff; border: none; box-shadow: var(--shadow);
+      background: linear-gradient(135deg, var(--red), var(--blue));
+    }
+    /* 内容留出底部栏空间，避免遮挡（含刘海屏/底部安全区） */
+    .wrap { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
   }
 
   .card {
@@ -401,7 +415,11 @@
   </div>
 </div>
 
-<button id="genFab" class="gen-fab">生成号码</button>
+<div id="mobileBar" class="mobile-bar">
+  <button id="mGen" class="mbtn mbtn-primary">生成号码</button>
+  <button id="mBt" class="mbtn">📊 回测</button>
+  <button id="mCopy" class="mbtn">📋 复制</button>
+</div>
 
 <script>
 const $ = (s) => document.querySelector(s);
@@ -411,7 +429,7 @@ const opts = { blueCover: false, shapeFilter: false };
 const LABELS = { random:'纯随机', hot:'追热', cold:'博冷', balanced:'冷热均衡', zone:'分区', spread:'分散' };
 
 /* ---------- 全局 loading / 防重复提交 ---------- */
-const apiButtons = ['#genBtn', '#btBtn', '#refreshBtn', '#copyBtn', '#genFab'];
+const apiButtons = ['#genBtn', '#btBtn', '#refreshBtn', '#copyBtn', '#mGen', '#mBt', '#mCopy'];
 let apiBusy = false;
 function setBusy(busy, msg) {
   apiBusy = busy;
@@ -665,6 +683,8 @@ $('#copyBtn').onclick = async () => {
   $('#status').textContent = '正在复制…';
   const ok = await copyText(text);
   $('#status').textContent = ok ? '已复制到剪贴板 ✓' : '复制失败，请手动框选文本复制';
+  const mc = $('#mCopy');
+  if (mc) { const old = mc.textContent; mc.textContent = ok ? '✓ 已复制' : '复制失败'; setTimeout(() => { mc.textContent = old; }, 1400); }
 };
 
 /* ---------- 刷新历史期数步进 ---------- */
@@ -719,8 +739,11 @@ document.querySelectorAll('.collapsible-head').forEach(h => {
 });
 
 /* ---------- 移动端粘性生成按钮 ---------- */
-const genFab = $('#genFab');
-if (genFab) genFab.onclick = () => { const b = $('#genBtn'); if (b && !b.disabled) b.click(); };
+/* 移动端底部操作栏：点击触发对应的桌面按钮（逻辑唯一来源，避免重复维护） */
+const mGen = $('#mGen'), mBt = $('#mBt'), mCopy = $('#mCopy');
+if (mGen)  mGen.onclick  = () => { const b = $('#genBtn');  if (b && !b.disabled) b.click(); };
+if (mBt)   mBt.onclick   = () => { const b = $('#btBtn');   if (b && !b.disabled) b.click(); };
+if (mCopy) mCopy.onclick = () => { const b = $('#copyBtn'); if (b && !b.disabled) b.click(); };
 
 loadTrend();
 </script>
