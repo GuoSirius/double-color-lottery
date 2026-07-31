@@ -112,6 +112,7 @@
     background: var(--panel); color: var(--text); font-size: 13px; transition: .2s;
   }
   .ghost-btn:hover { background: var(--panel-strong); border-color: var(--accent); }
+  .ghost-btn:disabled { opacity: .6; cursor: progress; }
 
   /* 走势 */
   .section-title { font-size: 13px; color: var(--muted); margin: 18px 0 10px; }
@@ -162,7 +163,14 @@
   .plus { color: var(--muted); font-weight: 800; }
 
   .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 30px 0; }
-  .status { font-size: 12.5px; color: var(--muted); margin-top: 12px; min-height: 18px; }
+  .status { font-size: 12.5px; color: var(--muted); min-height: 18px; }
+  .status-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; min-height: 18px; }
+  .spin {
+    width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   a { color: var(--accent); }
 
   /* 开关 */
@@ -319,7 +327,10 @@
       <div class="row2">
         <button class="ghost-btn" id="btBtn" style="flex:1">📊 用历史数据回测当前配置</button>
       </div>
-      <div class="status" id="status">就绪。</div>
+      <div class="status-row">
+        <span class="spin" id="statusSpin" style="display:none"></span>
+        <span class="status" id="status">就绪。</span>
+      </div>
     </div>
 
     <!-- 走势 + 结果 -->
@@ -367,6 +378,17 @@ let lastNumbers = [];
 const opts = { blueCover: false, shapeFilter: false };
 const LABELS = { random:'纯随机', hot:'追热', cold:'博冷', balanced:'冷热均衡', zone:'分区', spread:'分散' };
 
+/* ---------- 全局 loading / 防重复提交 ---------- */
+const apiButtons = ['#genBtn', '#btBtn', '#refreshBtn', '#copyBtn'];
+let apiBusy = false;
+function setBusy(busy, msg) {
+  apiBusy = busy;
+  apiButtons.forEach(sel => { const b = $(sel); if (b) b.disabled = busy; });
+  const sp = $('#statusSpin');
+  if (sp) sp.style.display = busy ? 'inline-block' : 'none';
+  if (msg != null) $('#status').textContent = msg;
+}
+
 /* ---------- 主题 ---------- */
 const themeBtn = $('#themeBtn');
 const savedTheme = localStorage.getItem('ssq-theme');
@@ -409,6 +431,8 @@ function setCount(n) { countEl.value = n; }
 
 /* ---------- 走势 ---------- */
 async function loadTrend() {
+  if (window.__trendBusy) return;
+  window.__trendBusy = true;
   try {
     const r = await fetch('/api/trend'); const d = await r.json();
     if (!d.ok) { $('#trendN').textContent = '（数据加载失败）'; return; }
@@ -428,6 +452,7 @@ async function loadTrend() {
     if (d.latest) $('#trendN').textContent += ` · 最新 ${d.latest.issue} 期（${d.latest.date}）`;
     if (d.shape && d.bounds) renderShapeStats(d.shape, d.bounds);
   } catch (e) { $('#trendN').textContent = '（加载出错）'; }
+  finally { window.__trendBusy = false; }
 }
 
 function renderShapeStats(s, b) {
@@ -449,8 +474,8 @@ function pad(n) { return String(n).padStart(2, '0'); }
 
 /* ---------- 生成 ---------- */
 $('#genBtn').onclick = async () => {
-  const btn = $('#genBtn'); btn.disabled = true; btn.textContent = '生成中…';
-  $('#status').textContent = '正在生成…';
+  if (apiBusy) return;
+  setBusy(true, '正在生成…');
   try {
     const r = await fetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -471,7 +496,7 @@ $('#genBtn').onclick = async () => {
   } catch (e) {
     $('#status').textContent = '请求失败：' + e.message;
   } finally {
-    btn.disabled = false; btn.textContent = '生 成 号 码';
+    setBusy(false);
   }
 };
 
@@ -519,13 +544,12 @@ $('#btPeriods').addEventListener('input', () => {
 
 /* ---------- 回测 ---------- */
 $('#btBtn').onclick = async () => {
-  const btn = $('#btBtn');
+  if (apiBusy) return;
   const res = parsePositiveIntInRange($('#btPeriods').value, 20, 400, '回测期数');
   if (!res.ok) { $('#status').textContent = res.error; $('#btPeriods').classList.add('invalid'); return; }
   $('#btPeriods').classList.remove('invalid');
   const btPeriods = res.value;
-  btn.disabled = true; btn.textContent = '回测中…';
-  $('#status').textContent = '正在用真实历史逐期回测，请稍候…';
+  setBusy(true, '正在用真实历史逐期回测，请稍候…');
   try {
     const r = await fetch('/api/backtest', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -539,7 +563,7 @@ $('#btBtn').onclick = async () => {
     renderBacktest(d);
     $('#status').textContent = `回测完成：${d.periods_tested} 期`;
   } catch (e) { $('#status').textContent = '回测出错：' + e.message; }
-  finally { btn.disabled = false; btn.textContent = '📊 用历史数据回测当前配置'; }
+  finally { setBusy(false); }
 };
 
 function renderBacktest(d) {
@@ -622,16 +646,18 @@ $('#histCount').addEventListener('input', () => {
 
 /* ---------- 更新数据 ---------- */
 $('#refreshBtn').onclick = async () => {
+  if (apiBusy) return;
   const res = parsePositiveIntInRange($('#histCount').value, 5, 99999, '历史期数');
   if (!res.ok) { $('#status').textContent = res.error; $('#histCount').classList.add('invalid'); return; }
   $('#histCount').classList.remove('invalid');
   const count = res.value;
-  $('#status').textContent = `正在刷新最新 ${count} 期开奖数据…`;
+  setBusy(true, `正在刷新最新 ${count} 期开奖数据…`);
   try {
     const r = await fetch('/api/refresh?count=' + count); const d = await r.json();
     if (d.ok) { $('#status').textContent = `数据已更新，共 ${d.count} 期（请求 ${d.requested} 期）`; loadTrend(); }
     else $('#status').textContent = '刷新失败：' + d.error;
   } catch (e) { $('#status').textContent = '刷新出错：' + e.message; }
+  finally { setBusy(false); }
 };
 
 /* ---------- 粒子背景 ---------- */
