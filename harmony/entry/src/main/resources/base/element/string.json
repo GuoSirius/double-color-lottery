@@ -3,6 +3,7 @@
     { "name": "app_name", "value": "双色球选号分析" },
     { "name": "module_desc", "value": "双色球选号分析模块" },
     { "name": "EntryAbility_desc", "value": "双色球选号分析" },
-    { "name": "EntryAbility_label", "value": "双色球选号分析" }
+    { "name": "EntryAbility_label", "value": "双色球选号分析" },
+    { "name": "app_desc", "value": "双色球选号分析与智能推荐" }
   ]
 }

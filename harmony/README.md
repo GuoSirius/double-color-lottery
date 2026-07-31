@@ -100,3 +100,4 @@
 - `build-profile.json5` —— 编译配置（已适配 **DevEco 6.1.1.300 / SDK 6.1.1(24)**）
 - `hvigorfile.ts` —— Hvigor 应用级构建脚本（DevEco 6.x 必需）
 - `entry/hvigorfile.ts` —— Hvigor 模块级构建脚本（DevEco 6.x 必需）
+- `hvigor/hvigor-config.json5` —— Hvigor 主配置文件（DevEco 6.x 必需，缺失会报 `00304004 Not Found`）
