@@ -3,5 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "main": "engine.js",
+  "exports": {
+    ".": {
+      "import": "./engine.js",
+      "require": "./engine.js"
+    }
+  },
   "description": "双色球智能选号 · Cloudflare Pages + Pages Functions 部署版（方案 A）"
 }

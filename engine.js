@@ -8,6 +8,11 @@
 // 说明：双色球每期开奖是独立的均匀随机抽样，过去不影响未来。本引擎的
 // "走势分析 / 加权选号" 只是按统计偏好生成号码的娱乐/参考方法，不会提高
 // 中奖概率。蓝球全覆盖（买满 16 注）是唯一数学上确定保底六等奖的手段。
+//
+// 模块格式：本文件为标准 ES Module（使用 export 语法）。Cloudflare Pages Functions 与
+// 浏览器通过 `import { ... } from './engine.js'` 引入；在 Node >= 22.12 下也可直接
+// `require('./engine.js')` 以 CommonJS 方式使用（Node 原生支持 require(ESM)）。更早的
+// Node 版本请用动态导入：`const engine = await import('./engine.js')`。无需维护第二份 CJS 副本。
 
 // ---------- 规则常量 ----------
 const RED_MIN = 1, RED_MAX = 33, BLUE_MIN = 1, BLUE_MAX = 16;

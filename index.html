@@ -58,6 +58,28 @@
   .grid { display: grid; grid-template-columns: 360px 1fr; gap: 22px; align-items: start; }
   @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
 
+  /* 内容列：PC 右栏 / 移动端单列，内部顺序与控件一致（结果→走势→回测） */
+  .content-col { display: flex; flex-direction: column; gap: 22px; }
+
+  /* 可折叠卡片 */
+  .collapsible-head { cursor: pointer; user-select: none; }
+  .collapsible-head .chev { margin-left: auto; transition: transform .25s; font-size: 13px; color: var(--muted); }
+  .collapsible.collapsed .chev { transform: rotate(-90deg); }
+  .collapsible.collapsed .collapsible-body { display: none; }
+
+  /* 移动端粘性生成按钮（PC 隐藏） */
+  .gen-fab { display: none; }
+  @media (max-width: 860px) {
+    .gen-fab {
+      display: block; position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+      z-index: 50; padding: 14px 30px; border: none; border-radius: 999px; cursor: pointer;
+      font-size: 15px; font-weight: 800; letter-spacing: 2px; color: #fff;
+      background: linear-gradient(135deg, var(--red), var(--blue)); box-shadow: var(--shadow);
+    }
+    .gen-fab:disabled { opacity: .6; cursor: progress; }
+    .wrap { padding-bottom: 96px; }
+  }
+
   .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 18px;
     padding: 20px; backdrop-filter: blur(14px); box-shadow: var(--shadow);
@@ -333,43 +355,53 @@
       </div>
     </div>
 
-    <!-- 走势 + 结果 -->
-    <div>
-      <div class="card" style="margin-bottom:22px;">
-        <h2><span class="dot"></span>走势分析 <span id="trendN" style="color:var(--muted);font-weight:400;font-size:12px;"></span></h2>
-        <div class="trend-grid">
-          <div>
-            <div class="section-title">红球热号 Top10</div>
-            <div class="rank-list" id="hotRed"></div>
-            <div class="section-title">红球冷号 Top10（高遗漏）</div>
-            <div class="rank-list" id="coldRed"></div>
-          </div>
-          <div>
-            <div class="section-title">红球区间分布</div>
-            <div id="zones"></div>
-            <div class="section-title">蓝球热度</div>
-            <div class="balls" id="blueBalls"></div>
-          </div>
-        </div>
-        <div class="section-title">红球走势（颜色越红越热 · 蓝边为冷号）</div>
-        <div class="balls" id="redBalls"></div>
-        <div class="section-title">真实开奖的形态特征（形态过滤依据）</div>
-        <div class="bt-grid" id="shapeStats"></div>
-      </div>
-
-      <div class="card" id="btCard" style="margin-bottom:22px;display:none;">
-        <h2><span class="dot"></span>历史回测 <span id="btMeta" style="color:var(--muted);font-weight:400;font-size:12px;"></span></h2>
-        <div id="btBody"></div>
-      </div>
+    <!-- 内容区：结果 → 走势 → 回测（PC 右栏 / 移动端单列，顺序与控件一致） -->
+    <div class="content-col">
 
       <div class="card">
         <h2><span class="dot"></span>生成结果</h2>
         <div class="guarantee" id="guarantee"></div>
         <div id="results"><div class="empty">点击「生成号码」查看结果</div></div>
       </div>
+
+      <div class="card collapsible" id="trendCard">
+        <h2 class="collapsible-head"><span class="dot"></span>走势分析
+          <span id="trendN" style="color:var(--muted);font-weight:400;font-size:12px;"></span>
+          <span class="chev">▾</span></h2>
+        <div class="collapsible-body">
+          <div class="trend-grid">
+            <div>
+              <div class="section-title">红球热号 Top10</div>
+              <div class="rank-list" id="hotRed"></div>
+              <div class="section-title">红球冷号 Top10（高遗漏）</div>
+              <div class="rank-list" id="coldRed"></div>
+            </div>
+            <div>
+              <div class="section-title">红球区间分布</div>
+              <div id="zones"></div>
+              <div class="section-title">蓝球热度</div>
+              <div class="balls" id="blueBalls"></div>
+            </div>
+          </div>
+          <div class="section-title">红球走势（颜色越红越热 · 蓝边为冷号）</div>
+          <div class="balls" id="redBalls"></div>
+          <div class="section-title">真实开奖的形态特征（形态过滤依据）</div>
+          <div class="bt-grid" id="shapeStats"></div>
+        </div>
+      </div>
+
+      <div class="card collapsible" id="btCard" style="display:none;">
+        <h2 class="collapsible-head"><span class="dot"></span>历史回测
+          <span id="btMeta" style="color:var(--muted);font-weight:400;font-size:12px;"></span>
+          <span class="chev">▾</span></h2>
+        <div class="collapsible-body"><div id="btBody"></div></div>
+      </div>
+
     </div>
   </div>
 </div>
+
+<button id="genFab" class="gen-fab">生成号码</button>
 
 <script>
 const $ = (s) => document.querySelector(s);
@@ -379,7 +411,7 @@ const opts = { blueCover: false, shapeFilter: false };
 const LABELS = { random:'纯随机', hot:'追热', cold:'博冷', balanced:'冷热均衡', zone:'分区', spread:'分散' };
 
 /* ---------- 全局 loading / 防重复提交 ---------- */
-const apiButtons = ['#genBtn', '#btBtn', '#refreshBtn', '#copyBtn'];
+const apiButtons = ['#genBtn', '#btBtn', '#refreshBtn', '#copyBtn', '#genFab'];
 let apiBusy = false;
 function setBusy(busy, msg) {
   apiBusy = busy;
@@ -568,6 +600,7 @@ $('#btBtn').onclick = async () => {
 
 function renderBacktest(d) {
   $('#btCard').style.display = '';
+  $('#btCard').classList.remove('collapsed');
   const tags = [LABELS[d.strategy]];
   if (d.blue_cover) tags.push('蓝球覆盖');
   if (d.shape_filter) tags.push('形态过滤');
@@ -679,6 +712,15 @@ $('#refreshBtn').onclick = async () => {
     requestAnimationFrame(loop);
   })();
 })();
+
+/* ---------- 可折叠卡片（走势 / 回测）---------- */
+document.querySelectorAll('.collapsible-head').forEach(h => {
+  h.addEventListener('click', () => h.parentElement.classList.toggle('collapsed'));
+});
+
+/* ---------- 移动端粘性生成按钮 ---------- */
+const genFab = $('#genFab');
+if (genFab) genFab.onclick = () => { const b = $('#genBtn'); if (b && !b.disabled) b.click(); };
 
 loadTrend();
 </script>
