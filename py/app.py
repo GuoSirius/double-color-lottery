@@ -226,9 +226,20 @@ class Handler(BaseHTTPRequestHandler):
 
     def _refresh(self):
         try:
+            from urllib.parse import parse_qs
+
+            qs = parse_qs(urlparse(self.path).query)
+            try:
+                count = int((qs.get("count") or ["500"])[0])
+            except (TypeError, ValueError):
+                count = 500
+            # 历史期数取值范围：最小 5 期，最大 99999 期（前后端统一校验）
+            if count < 5 or count > 99999:
+                return {"ok": False, "error": "历史期数需在 5–99999 期之间"}
+
             import fetch_data
 
-            rows = fetch_data.fetch(500)
+            rows = fetch_data.fetch(count)
             # ★ 必须先体检再落盘：历史上出现过「蓝球列错位」污染整个数据集，
             #   一旦写入会静默毁掉全部走势分析与回测结论。
             warns = fetch_data.sanity_check(rows)
@@ -241,6 +252,7 @@ class Handler(BaseHTTPRequestHandler):
                 w.writerows(rows)
             return {
                 "ok": True,
+                "requested": count,
                 "count": len(rows),
                 "latest": rows[0] if rows else None,
                 "checked": True,

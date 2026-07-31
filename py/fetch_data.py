@@ -162,6 +162,8 @@ def sanity_check(rows: list[dict]) -> list[str]:
 
 
 def fetch(limit: int = 200) -> list[dict]:
+    if not (5 <= limit <= 99999):
+        raise ValueError(f"历史期数需在 5–99999 期之间（当前请求 {limit}）")
     # 500 接口：start/end 为期号范围，limit 限制条数
     url = f"{BASE_URL}?start=23001&end=26999&limit={limit}"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})

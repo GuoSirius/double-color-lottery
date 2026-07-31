@@ -19,6 +19,10 @@
   # 回测：用真实历史验证策略，300 期走查
   python cli.py --backtest -n 16 -s spread --blue-cover --periods 300
 
+  # ★ 手动指定抓取的历史期数（最小 5 期，最大 99999 期），写入默认 data 文件
+  python cli.py --history 500
+  python cli.py --history 99999
+
 参数
 ----
   -n, --count      注数（默认 5）
@@ -230,6 +234,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--shape", action="store_true", help="打印历史形态统计")
     parser.add_argument("--backtest", action="store_true", help="运行历史回测")
     parser.add_argument("--periods", type=int, default=200, help="回测期数（默认 200）")
+    parser.add_argument("--history", type=int, default=None,
+                        help="抓取并保存指定数量的历史开奖（5–99999 期），写入默认 data 文件")
     parser.add_argument("--seed", type=int, default=None, help="随机种子（复现结果）")
     parser.add_argument("--json", action="store_true", help="JSON 格式输出")
     parser.add_argument("--self-test", action="store_true", help="运行内置自检")
@@ -237,6 +243,37 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.self_test:
         return run_self_test()
+
+    # ---- 抓取并保存历史期数（--history）----
+    if args.history is not None:
+        if not (5 <= args.history <= 99999):
+            parser.error("历史期数需在 5–99999 期之间")
+        try:
+            import csv as _csv
+            from fetch_data import fetch, sanity_check
+
+            here = os.path.dirname(os.path.abspath(__file__))
+            out = os.path.join(here, "data", "sample_history.csv")
+            rows = fetch(args.history)
+            warns = sanity_check(rows)
+            if warns:
+                print("数据质量体检未通过，已中止写入：")
+                for w in warns:
+                    print("  -", w)
+                return 1
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            with open(out, "w", newline="", encoding="utf-8-sig") as f:
+                w = _csv.DictWriter(f, fieldnames=["issue", "date", "red", "blue"])
+                w.writeheader()
+                w.writerows(rows)
+            print(f"✓ 已抓取并保存 {len(rows)} 期到 {out}")
+            if rows:
+                print(f"  最新一期：{rows[0]['issue']} {rows[0]['date']} "
+                      f"红:{rows[0]['red']} 蓝:{rows[0]['blue']}")
+            return 0
+        except Exception as e:  # noqa: BLE001
+            print(f"错误：{e}", file=sys.stderr)
+            return 1
 
     data_path = args.data or _default_data()
     needs_data = args.strategy in ("hot", "cold", "balanced") or args.shape_filter \
