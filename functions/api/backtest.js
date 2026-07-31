@@ -14,18 +14,26 @@ export async function onRequestPost(context) {
     }
 
     const strategy = String(data.strategy || "random");
-    let count;
-    try {
-      count = Math.max(1, Math.min(parseInt(data.count ?? 5, 10) || 5, 50));
-    } catch (_) {
-      count = 5;
+
+    // 严格校验：注数 1–50、期数 20–400，均须为正整数（拒绝小数/字母/负数/越界）。
+    // 与 py/app.py._backtest 行为保持一致：非法输入直接返回 400，而不是静默夹紧。
+    const isPosInt = (v) =>
+      typeof v === "number"
+        ? Number.isInteger(v) && v > 0
+        : typeof v === "string"
+          ? /^\d+$/.test(v.trim()) && parseInt(v, 10) > 0
+          : false;
+    const toInt = (v) => (typeof v === "string" ? parseInt(v, 10) : v);
+
+    if (!isPosInt(data.count ?? 5) || toInt(data.count ?? 5) < 1 || toInt(data.count ?? 5) > 50) {
+      return json({ ok: false, error: "回测注数需为 1–50 之间的正整数" }, 400);
     }
-    let periods;
-    try {
-      periods = Math.max(20, Math.min(parseInt(data.periods ?? 150, 10) || 150, 400));
-    } catch (_) {
-      periods = 150;
+    const count = toInt(data.count ?? 5);
+
+    if (!isPosInt(data.periods ?? 150) || toInt(data.periods ?? 150) < 20 || toInt(data.periods ?? 150) > 400) {
+      return json({ ok: false, error: "回测期数需为 20–400 之间的正整数" }, 400);
     }
+    const periods = toInt(data.periods ?? 150);
 
     const draws = await loadDraws(context);
     const r = backtest(draws, {

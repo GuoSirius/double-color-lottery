@@ -115,10 +115,13 @@ export function sanityCheck(rows) {
 }
 
 // 校验历史期数：最小 5 期，最大 99999 期（与 py 版一致）。非法则抛错。
+// 严格模式：必须是正整数（拒绝小数/字母/负数/0），不再用 parseInt 宽松解析。
 export function validateLimit(n) {
+  if (typeof n !== "string") n = String(n ?? "");
+  n = n.trim();
+  if (!/^\d+$/.test(n)) throw new Error("历史期数必须是 5–99999 之间的正整数");
   const v = parseInt(n, 10);
-  if (!Number.isFinite(v) || v < 5 || v > 99999)
-    throw new Error("历史期数需在 5–99999 期之间");
+  if (v < 5 || v > 99999) throw new Error("历史期数需在 5–99999 期之间");
   return v;
 }
 
