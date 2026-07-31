@@ -38,13 +38,18 @@ export async function onRequestPost(context) {
     const periods = toInt(data.periods ?? 150);
 
     const draws = await loadDraws(context);
-    const r = backtest(draws, {
+    // 防止 KV/静态历史过多（如刷新型拉取了上万期）导致回测 O(n^2) 触发 Cloudflare CPU 限额：
+    // 最近 periods 期回测只需最近 (periods + minTrain) 期数据，更早的期数不会影响结果。
+    const minTrain = Math.min(200, Math.max(50, draws.length - periods));
+    const need = periods + minTrain;
+    const used = draws.length > need ? draws.slice(draws.length - need) : draws;
+    const r = backtest(used, {
       count,
       strategy,
       periods,
       blueCover: !!(data.blueCover ?? false),
       shapeFilter: !!(data.shapeFilter ?? false),
-      minTrain: Math.min(200, Math.max(50, draws.length - periods)),
+      minTrain,
     });
     r.ok = true;
     return json(r);

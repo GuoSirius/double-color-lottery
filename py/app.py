@@ -268,6 +268,12 @@ class Handler(BaseHTTPRequestHandler):
         periods = int(data.get("periods", 150))
         try:
             draws = _load()
+            # 防止历史过多（如刷新拉取上万期）导致回测 O(n^2) 过慢：
+            # 最近 periods 期回测只需最近 (periods + min_train) 期数据，更早的期数不会影响结果。
+            min_train_eff = min(200, max(50, len(draws) - periods))
+            need = periods + min_train_eff
+            if len(draws) > need:
+                draws = draws[-need:]
             r = backtest(
                 draws,
                 count=count,
@@ -275,7 +281,7 @@ class Handler(BaseHTTPRequestHandler):
                 periods=periods,
                 blue_cover=bool(data.get("blueCover", False)),
                 shape_filter=bool(data.get("shapeFilter", False)),
-                min_train=min(200, max(50, len(draws) - periods)),
+                min_train=min_train_eff,
             )
             r["ok"] = True
             return r

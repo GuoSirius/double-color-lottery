@@ -453,6 +453,29 @@ function setBusy(busy, msg) {
   if (msg != null) $('#status').textContent = msg;
 }
 
+/* 统一的 JSON 请求封装：先校验 HTTP 状态与 Content-Type，避免 Cloudflare 偶发返回
+   HTML 错误页（如超时/503）时前端 .json() 抛出 “Unexpected token '<'” 这类难以理解的报错。
+   注意：当 Content-Type 确为 JSON 时（即便 HTTP 非 2xx，如 {ok:false,error}），仍原样返回，
+   由调用方按 d.ok 处理业务级错误信息，不会覆盖掉结构化的错误提示。 */
+async function apiJson(url, opts) {
+  let r;
+  try {
+    r = await fetch(url, opts);
+  } catch (e) {
+    throw new Error('网络请求失败：' + ((e && e.message) ? e.message : String(e)));
+  }
+  const ct = (r.headers && r.headers.get) ? (r.headers.get('content-type') || '') : '';
+  if (ct.indexOf('application/json') === -1) {
+    let preview = '';
+    try { preview = (await r.text()).replace(/\s+/g, ' ').slice(0, 60); } catch (_) {}
+    if (!r.ok) {
+      throw new Error(`服务暂时不可用（HTTP ${r.status}），请稍后重试` + (preview ? `：${preview}` : ''));
+    }
+    throw new Error('服务返回了非 JSON 内容，可能是服务器内部错误，请稍后重试');
+  }
+  return r.json();
+}
+
 /* ---------- 主题 ---------- */
 const themeBtn = $('#themeBtn');
 const savedTheme = localStorage.getItem('ssq-theme');
@@ -498,7 +521,7 @@ async function loadTrend() {
   if (window.__trendBusy) return;
   window.__trendBusy = true;
   try {
-    const r = await fetch(API_BASE + '/api/trend'); const d = await r.json();
+    const d = await apiJson(API_BASE + '/api/trend');
     if (!d.ok) { $('#trendN').textContent = '（数据加载失败）'; return; }
     $('#trendN').textContent = `· 基于 ${d.n} 期历史`;
     $('#hotRed').innerHTML = d.hot.map(([n,c]) => `<div class="rank-item hot"><span class="num">${pad(n)}</span><span>出现${c}次</span></div>`).join('');
@@ -541,14 +564,13 @@ $('#genBtn').onclick = async () => {
   if (apiBusy) return;
   setBusy(true, '正在生成…');
   try {
-    const r = await fetch(API_BASE + '/api/generate', {
+    const d = await apiJson(API_BASE + '/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         strategy: currentStrategy, count: +countEl.value, dedupe: true,
         blueCover: opts.blueCover, shapeFilter: opts.shapeFilter
       })
     });
-    const d = await r.json();
     if (!d.ok) { $('#status').textContent = '错误：' + d.error; return; }
     lastNumbers = d.numbers;
     renderResults(d.numbers);
@@ -615,14 +637,13 @@ $('#btBtn').onclick = async () => {
   const btPeriods = res.value;
   setBusy(true, '正在用真实历史逐期回测，请稍候…');
   try {
-    const r = await fetch(API_BASE + '/api/backtest', {
+    const d = await apiJson(API_BASE + '/api/backtest', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         strategy: currentStrategy, count: +countEl.value, periods: btPeriods,
         blueCover: opts.blueCover, shapeFilter: opts.shapeFilter
       })
     });
-    const d = await r.json();
     if (!d.ok) { $('#status').textContent = '回测失败：' + d.error; return; }
     renderBacktest(d);
     $('#status').textContent = `回测完成：${d.periods_tested} 期`;
@@ -720,7 +741,7 @@ $('#refreshBtn').onclick = async () => {
   const count = res.value;
   setBusy(true, `正在刷新最新 ${count} 期开奖数据…`);
   try {
-    const r = await fetch(API_BASE + '/api/refresh?count=' + count); const d = await r.json();
+    const d = await apiJson(API_BASE + '/api/refresh?count=' + count);
     if (d.ok) { $('#status').textContent = `数据已更新，共 ${d.count} 期（请求 ${d.requested ?? count ?? '—'} 期）`; loadTrend(); }
     else $('#status').textContent = '刷新失败：' + d.error;
   } catch (e) { $('#status').textContent = '刷新出错：' + e.message; }
