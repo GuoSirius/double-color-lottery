@@ -12,6 +12,11 @@ const BASE_URL = "https://datachart.500.com/ssq/history/newinc/history.php";
 
 // HTML 表格行解析：收集每个 <tr> 内的 <td> 文本
 function extractRows(html) {
+  // ⚠️ 必须先剥离 HTML 注释：500 彩票网在近期的历史表每行开头塞了
+  // `<!--<td>2</td>-->` 之类的注释残留，正则 <td> 会把注释里的 <td> 也当成
+  // 一格，导致整行右移一列、期号/蓝球错位 → 解析出 0 行。
+  // 这与 py 版（用 HTMLParser，天然忽略注释）行为保持一致。
+  html = html.replace(/<!--[\s\S]*?-->/g, "");
   const rows = [];
   const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let trM;
