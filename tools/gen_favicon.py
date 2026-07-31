@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-生成「双色球」原创几何 favicon（favicon.ico + favicon.svg）。
+生成「双色球」原创几何图标（favicon.ico / favicon.svg / icon-192.png / icon-512.png）。
 
 设计说明
 --------
@@ -67,13 +67,6 @@ def draw_ring(cx, cy, rad, a):
                 set_px(x, y, 255, 255, 255, a)
 
 
-# 红球（左） + 蓝球（右，叠压在前），白色描边环提升质感
-draw_ball(95, 128, 70, (255, 138, 120), (198, 42, 28))
-draw_ball(161, 128, 70, (105, 168, 255), (27, 63, 176))
-draw_ring(95, 128, 70, 120)
-draw_ring(161, 128, 70, 230)
-
-
 def make_png():
     raw = bytearray()
     for y in range(H):
@@ -128,16 +121,35 @@ SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" 
 """
 
 
+def render(size):
+    """按给定尺寸重绘红蓝双球，返回该尺寸的 PNG 字节。"""
+    global W, H, buf
+    W = H = size
+    buf = bytearray(W * H * 4)
+    s = size / 256.0
+    draw_ball(95 * s, 128 * s, 70 * s, (255, 138, 120), (198, 42, 28))
+    draw_ball(161 * s, 128 * s, 70 * s, (105, 168, 255), (27, 63, 176))
+    draw_ring(95 * s, 128 * s, 70 * s, 120)
+    draw_ring(161 * s, 128 * s, 70 * s, 230)
+    return make_png()
+
+
 def main():
-    png = make_png()
+    png256 = render(256)
     ico_path = os.path.join(ROOT, "favicon.ico")
     svg_path = os.path.join(ROOT, "favicon.svg")
+    p192 = os.path.join(ROOT, "icon-192.png")
+    p512 = os.path.join(ROOT, "icon-512.png")
     with open(ico_path, "wb") as f:
-        f.write(make_ico(png))
+        f.write(make_ico(png256))
     with open(svg_path, "w", encoding="utf-8") as f:
         f.write(SVG)
-    print("written:", ico_path, os.path.getsize(ico_path), "bytes")
-    print("written:", svg_path, os.path.getsize(svg_path), "bytes")
+    with open(p192, "wb") as f:
+        f.write(render(192))
+    with open(p512, "wb") as f:
+        f.write(render(512))
+    for p in (ico_path, svg_path, p192, p512):
+        print("written:", p, os.path.getsize(p), "bytes")
 
 
 if __name__ == "__main__":

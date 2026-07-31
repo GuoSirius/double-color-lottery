@@ -6,6 +6,8 @@
   <title>双色球智能选号 · 走势分析</title>
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#0b1020" />
 <style>
   :root {
     --bg: #0b1020; --bg2: #0f1629; --panel: rgba(255,255,255,.045);
@@ -435,6 +437,11 @@ let lastNumbers = [];
 const opts = { blueCover: false, shapeFilter: false };
 const LABELS = { random:'纯随机', hot:'追热', cold:'博冷', balanced:'冷热均衡', zone:'分区', spread:'分散' };
 
+// app / web 接口基地址区分：Capacitor 原生壳内统一走远程 Cloudflare 接口；
+// 普通浏览器（web）API_BASE 为空，走同源相对路径（本地 py 或 Cloudflare 同源均正常）。
+const REMOTE_API = 'https://ssq-cloudflare-em8.pages.dev';
+const API_BASE = (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) ? REMOTE_API : '';
+
 /* ---------- 全局 loading / 防重复提交 ---------- */
 const apiButtons = ['#genBtn', '#btBtn', '#refreshBtn', '#copyBtn', '#mGen', '#mBt', '#mCopy', '#mRefresh'];
 let apiBusy = false;
@@ -491,7 +498,7 @@ async function loadTrend() {
   if (window.__trendBusy) return;
   window.__trendBusy = true;
   try {
-    const r = await fetch('/api/trend'); const d = await r.json();
+    const r = await fetch(API_BASE + '/api/trend'); const d = await r.json();
     if (!d.ok) { $('#trendN').textContent = '（数据加载失败）'; return; }
     $('#trendN').textContent = `· 基于 ${d.n} 期历史`;
     $('#hotRed').innerHTML = d.hot.map(([n,c]) => `<div class="rank-item hot"><span class="num">${pad(n)}</span><span>出现${c}次</span></div>`).join('');
@@ -534,7 +541,7 @@ $('#genBtn').onclick = async () => {
   if (apiBusy) return;
   setBusy(true, '正在生成…');
   try {
-    const r = await fetch('/api/generate', {
+    const r = await fetch(API_BASE + '/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         strategy: currentStrategy, count: +countEl.value, dedupe: true,
@@ -608,7 +615,7 @@ $('#btBtn').onclick = async () => {
   const btPeriods = res.value;
   setBusy(true, '正在用真实历史逐期回测，请稍候…');
   try {
-    const r = await fetch('/api/backtest', {
+    const r = await fetch(API_BASE + '/api/backtest', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         strategy: currentStrategy, count: +countEl.value, periods: btPeriods,
@@ -713,7 +720,7 @@ $('#refreshBtn').onclick = async () => {
   const count = res.value;
   setBusy(true, `正在刷新最新 ${count} 期开奖数据…`);
   try {
-    const r = await fetch('/api/refresh?count=' + count); const d = await r.json();
+    const r = await fetch(API_BASE + '/api/refresh?count=' + count); const d = await r.json();
     if (d.ok) { $('#status').textContent = `数据已更新，共 ${d.count} 期（请求 ${d.requested ?? count ?? '—'} 期）`; loadTrend(); }
     else $('#status').textContent = '刷新失败：' + d.error;
   } catch (e) { $('#status').textContent = '刷新出错：' + e.message; }
@@ -752,6 +759,13 @@ if (mGen)  mGen.onclick  = () => { const b = $('#genBtn');  if (b && !b.disabled
 if (mBt)   mBt.onclick   = () => { const b = $('#btBtn');   if (b && !b.disabled) b.click(); };
 if (mCopy) mCopy.onclick = () => { const b = $('#copyBtn'); if (b && !b.disabled) b.click(); };
 if (mRefresh) mRefresh.onclick = () => { const b = $('#refreshBtn'); if (b && !b.disabled) b.click(); };
+
+// PWA：注册 Service Worker（本地 file:// 或异常环境静默失败，不影响功能）
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 
 loadTrend();
 </script>
