@@ -137,6 +137,7 @@ npx cap sync                        # 第三步：同步进原生工程
 | `npm install` 卡住/很慢 | **先切淘宝镜像源**：`npm config set registry https://registry.npmmirror.com`，再 `npm install`；公司网络可换手机热点 |
 | `npx cap` 提示找不到命令 | 确认在 `app/` 目录、且 `npm install` 已完成 |
 | Android Studio 一直「Building / Indexing」 | 首次下载 SDK/Gradle，正常现象，等它转完 |
+| **首次启动弹窗："Unable to access Android SDK add-on list"** | 这是去 Google 拉 SDK 列表被墙。点 **Cancel** 跳过，进 IDE 后通过 `SDK Manager → SDK Update Sites` 换成清华/中科大镜像（见下方「附」），再下载 SDK。 |
 | 手机装不上 APK | 允许「未知来源」；或改用 Android Studio 直接 Run 到手机 |
 | App 打开后白屏 | 检查手机能否访问 `ssq-cloudflare-em8.pages.dev`（网站本身要能打开） |
 
@@ -151,7 +152,27 @@ npx cap sync                        # 第三步：同步进原生工程
 - **改用中国官方镜像**：👉 https://developer.android.google.cn/studio （界面中文、内容一致、通常能正常下载）。
 - 若「下载」按钮点了也卡（个别地区 `dl.google.com` CDN 抽风），用**迅雷 / IDM** 等多线程下载器，或搜「Android Studio 国内镜像下载」。
 
-### 2. npm install 卡住 / 超时
+### 2. 首次启动提示 "Unable to access Android SDK add-on list"
+这是 Android Studio 去 Google 拉 SDK 仓库列表被墙，弹窗让你 Setup Proxy 或 Cancel。**直接点 Cancel**，然后手动换国内镜像：
+
+1. 进入 Android Studio 主界面 → **More Actions → SDK Manager**。
+2. 顶部切到 **SDK Update Sites**。
+3. 把默认的 Google 源地址改成下面任意一个：
+   - 清华镜像：`https://mirrors.tuna.tsinghua.edu.cn/android/repository/`
+   - 中科大镜像：`https://mirrors.ustc.edu.cn/android/repository/`
+4. 点 **Apply**，再切到 **SDK Platforms** 安装 Android 14/15 + **SDK Tools** 安装 Build-Tools / Platform-Tools。
+
+不想手动改？安装前在 Windows 命令行执行一次（把 `Admin` 换成你的 Windows 用户名）：
+```bash
+mkdir "C:\Users\Admin\.android" 2>nul
+(
+echo count=1
+echo src01=https\://mirrors.tuna.tsinghua.edu.cn/android/repository/
+) > "C:\Users\Admin\.android\repositories.cfg"
+```
+然后再启动 Android Studio，首次向导就能直接走清华镜像。
+
+### 3. npm install 卡住 / 超时
 - 先把 npm 源切成淘宝镜像（国内快很多），**再**装包：
   ```bash
   npm config set registry https://registry.npmmirror.com
@@ -159,12 +180,12 @@ npx cap sync                        # 第三步：同步进原生工程
   ```
 - 之后所有 `npx` 命令也走这个源，速度正常。
 
-### 3. Android Studio 打开后 Gradle / SDK 下载卡死
+### 4. Android Studio 打开后 Gradle / SDK 下载卡死
 - 首次打开 `app/android` 项目时，Android Studio 会自动下载 **Gradle** 和 **Android SDK**，这一步可能转圈十几分钟。
 - 轻微卡顿是正常，耐心等；若长时间（半小时以上）不动，可搜「Gradle 国内镜像」「Android SDK 国内镜像」配置后再重试。
 - 不想等？可改用公司/手机热点网络，有时比校园网/企业网更顺。
 
-### 4. 其它国际资源
+### 5. 其它国际资源
 - 文档里若还有指向 `*.google.com`、`github.com` 的下载，遇到打不开就用对应国内镜像（如 `google.cn` 系列、`npmmirror`、`gitclone.com` 等）替代。
 
 > 提示：以上只是**下载/联网**层面的问题。代码、命令本身都没问题，网络通了照着做就能跑通。
