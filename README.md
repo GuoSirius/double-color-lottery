@@ -165,3 +165,69 @@ wrangler pages deploy . --project-name ssq-cloudflare
 - `py/`：原始实现，继续本地运行供你测试其它功能，不受本次改造影响。
 - 根目录：Cloudflare 可部署版本，引擎逻辑（`engine.js`）与 `py/ssq.py` 逐一对齐，
   并经 `test/functions_verify.mjs` 验证输出一致。
+
+---
+
+## 打包为 App（安卓 / iOS / 鸿蒙 / PWA）
+
+同一个 `index.html`（单文件、自包含）可同时作为 **Web 站点、PWA、Capacitor 原生 App、鸿蒙 ArkUI App** 的来源，无需维护多份前端。
+
+### 接口基地址自动区分（web / app）
+
+`index.html` 顶部已内置：
+
+```js
+const REMOTE_API = 'https://ssq-cloudflare-em8.pages.dev';
+const API_BASE = (window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function'
+  && window.Capacitor.isNativePlatform()) ? REMOTE_API : '';
+```
+
+- **Web 端**（浏览器、Cloudflare 站点）：`API_BASE` 为空 → 走同源相对路径 `/api/*`，本地 `py` 与线上 Cloudflare 都正常。
+- **Capacitor App（安卓/iOS）**：识别到 Capacitor 环境 → 统一走 `https://ssq-cloudflare-em8.pages.dev/api/*`。
+- **鸿蒙 App**：ArkUI 的 `Web` 组件直接加载远程站点地址（与 API 同源），无需额外切换。
+
+> 所有 4 个接口（`/api/trend`、`/api/generate`、`/api/backtest`、`/api/refresh`）均已按上述 `API_BASE` 拼接。
+
+### 跨域（CORS）
+
+App 内嵌 WebView 调用远程接口属于跨域，已在 **Cloudflare Functions（`functions/api/_common.js`）与 `py/app.py` 双版本** 补齐：
+
+- 响应头 `Access-Control-Allow-Origin: *`（生产可收敛为具体来源）。
+- 处理 `OPTIONS` 预检（浏览器跨域 POST/带 `Content-Type` 头时会先发 OPTIONS 探路）。
+
+### 1) Capacitor —— 安卓 / iOS（目录 `app/`）
+
+> 本仓库已包含可构建工程；AAB/IPA 的最终编译需你本机有对应 IDE。
+
+前置依赖：**Node ≥ 24**、Android Studio + SDK（安卓）、Xcode（iOS，仅 macOS）、Capacitor CLI。
+
+```bash
+cd app
+npm install                 # 安装 @capacitor/core / cli / android / ios
+npm run sync               # 把根目录 index.html 同步到 app/www/（单一来源，避免双份维护）
+npx cap add android        # 生成 app/android（用 Android Studio 打开编译 AAB）
+npx cap add ios            # 生成 app/ios（用 Xcode 打开编译 IPA，仅 macOS）
+```
+
+- `app/www/` 已被 `.gitignore` 忽略，每次改完前端只需重跑 `npm run sync`。
+- 上架：Google Play（一次性 $25 开发者账号）、App Store（$99/年）。
+
+### 2) HarmonyOS NEXT —— 鸿蒙（目录 `harmony/`）
+
+> 用 **DevEco Studio** 打开 `harmony/` 目录即可。`Index.ets` 用 ArkUI `Web` 组件加载 `https://ssq-cloudflare-em8.pages.dev`（与 API 同源，无需 CORS 处理）。
+
+```bash
+# DevEco Studio 内：Build → Build HAP / Build APP → 生成 .hap / .app
+```
+
+- 目录内含 `app_icon.png` / `startIcon.png` 为**占位图标**，请在 DevEco 中替换为自适应图标（foreground/background + `icon.json`）。
+- 上架：华为应用市场（需华为开发者联盟实名认证）。
+
+### 3) PWA —— 免商店即装（已内置）
+
+站点已自带 `manifest.webmanifest` + `sw.js`：
+
+- 通过 **HTTPS** 访问（Cloudflare 部署已满足）后，Android Chrome「添加到主屏幕」即可像原生 App 一样全屏使用，零构建、零上架。
+- 离线时外壳（HTML/图标）可缓存，接口请求实时走网络。
+
+> 推荐先用 PWA 顶上日常使用，再按需推进原生商店上架。
