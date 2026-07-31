@@ -10,6 +10,7 @@
 - 一个安卓手机上能安装、能用的 App，图标、启动页、界面都和网站一致。
 - 点「生成 / 回测 / 复制 / 更新」走的是**远程服务器**（`https://ssq-cloudflare-em8.pages.dev`），所以不用在手机里再跑后台。
 - 网站改了之后，重新跑一下同步命令就能更新 App 里的页面（见下文）。
+- ⚠️ **App 不会自动更新**：网站改版后，必须重新 `npm run sync` → `npx cap sync` → 重新构建/上架，App 里的页面才会变。想「改网站即生效」请用鸿蒙版（见仓库 `harmony/`）。
 
 ---
 
@@ -98,6 +99,28 @@ npx cap open ios        # 打开 Xcode
 `index.html` 里已经写好：一旦运行在 App 里（检测到 Capacitor 原生环境），就自动把请求发到
 `https://ssq-cloudflare-em8.pages.dev/api/...`；在电脑浏览器里打开时则走本地同源。
 **所以你不需要改任何地址**，后台服务器也已开启跨域(CORS)支持。
+
+---
+
+## 附：把 App 图标换成你自己的品牌
+
+工程里已经放好了一张品牌图标源图：**`app/resources/icon.png`**（1024×1024，双色球双球设计）。
+但 Capacitor **不会自动把它用上**——`npx cap add android/ios` 生成的是 Capacitor 默认占位图标（电容 logo）。
+需要再从这张源图生成各尺寸图标，步骤如下：
+
+```bash
+cd app
+npm install -g cordova-res          # 第一步：装图标生成工具（一次性）
+npx cordova-res capacitor --skip-config --copy   # 第二步：从 icon.png 生成安卓/iOS 各尺寸并拷贝
+npx cap sync                        # 第三步：同步进原生工程
+```
+
+- 安卓：生成 `android/app/src/main/res/mipmap-*` 各密度图标。
+- iOS：生成 `ios/App/App/Assets.xcassets/AppIcon.appiconset` 全套尺寸。
+- 想换图？直接替换 `app/resources/icon.png`（建议 1024×1024、透明背景最佳），重跑上面命令即可。
+
+> 装不上 `cordova-res` 时，可手动：把 `icon.png` 导出 48/72/96/144/192 px 五张，放进安卓工程
+> `res/mipmap-mdpi`~`mipmap-xxxhdpi` 目录覆盖同名文件（iOS 同理手动放 AppIcon.appiconset）。
 
 ---
 
