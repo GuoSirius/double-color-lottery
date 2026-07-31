@@ -293,6 +293,14 @@
       </div>
 
       <button class="gen-btn" id="genBtn">生 成 号 码</button>
+      <div>
+        <label>刷新历史期数（5–99999）</label>
+        <div class="stepper">
+          <button id="histMinus">−</button>
+          <input id="histCount" type="number" min="5" max="99999" step="1" value="500" />
+          <button id="histPlus">＋</button>
+        </div>
+      </div>
       <div class="row2">
         <button class="ghost-btn" id="refreshBtn">🔄 更新数据</button>
         <button class="ghost-btn" id="copyBtn">📋 复制结果</button>
@@ -542,12 +550,22 @@ $('#copyBtn').onclick = () => {
   navigator.clipboard.writeText(text).then(() => $('#status').textContent = '已复制到剪贴板 ✓').catch(() => $('#status').textContent = '复制失败');
 };
 
+/* ---------- 刷新历史期数步进 ---------- */
+$('#histMinus').onclick = () => { const el = $('#histCount'); el.value = Math.max(5, (parseInt(el.value, 10) || 5) - 1); };
+$('#histPlus').onclick = () => { const el = $('#histCount'); el.value = Math.min(99999, (parseInt(el.value, 10) || 500) + 1); };
+
 /* ---------- 更新数据 ---------- */
 $('#refreshBtn').onclick = async () => {
-  $('#status').textContent = '正在刷新最新开奖数据…';
+  const raw = parseInt($('#histCount').value, 10);
+  if (isNaN(raw) || raw < 5 || raw > 99999) {
+    $('#status').textContent = '历史期数需在 5–99999 之间';
+    return;
+  }
+  const count = Math.min(99999, Math.max(5, raw));
+  $('#status').textContent = `正在刷新最新 ${count} 期开奖数据…`;
   try {
-    const r = await fetch('/api/refresh'); const d = await r.json();
-    if (d.ok) { $('#status').textContent = `数据已更新，共 ${d.count} 期`; loadTrend(); }
+    const r = await fetch('/api/refresh?count=' + count); const d = await r.json();
+    if (d.ok) { $('#status').textContent = `数据已更新，共 ${d.count} 期（请求 ${d.requested} 期）`; loadTrend(); }
     else $('#status').textContent = '刷新失败：' + d.error;
   } catch (e) { $('#status').textContent = '刷新出错：' + e.message; }
 };
