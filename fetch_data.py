@@ -60,37 +60,105 @@ def _to_ints(cells: list[str]) -> list[int]:
 
 
 def parse_rows(html: str) -> list[dict]:
-    """从 500 历史页 HTML 提取 (issue, date, reds[6], blue)。"""
+    """
+    从 500 历史页 HTML 提取 (issue, date, reds[6], blue)。
+
+    ⚠️ 必须按【列位置】解析，不能按数值范围猜。
+    500 历史表每行 16 列，结构固定：
+      [0]  期号        26087
+      [1]-[6] 红球     04 06 10 18 23 31
+      [7]  蓝球        11
+      [8]  快乐星期天
+      [9]  奖池奖金
+      [10] 一等奖注数  [11] 一等奖奖金
+      [12] 二等奖注数  [13] 二等奖奖金
+      [14] 总投注额
+      [15] 开奖日期    2026-07-30
+
+    历史教训：早期版本用「第一个 1-16 之间的数字」当蓝球，
+    结果永远取到了第 1 个红球（红球也可能 <=16），
+    导致整份数据的蓝球列 = 最小红球，走势分析与回测全部失真。
+    """
     p = _TableParser()
     p.feed(html)
     results = []
     for row in p.rows:
-        # 找到期号单元格：纯数字且长度>=5（如 2026087 / 26087）
-        issue = ""
-        for cell in row:
-            cell = cell.strip()
-            if cell.isdigit() and len(cell) >= 5:
-                issue = cell
-                break
-        if not issue:
+        if len(row) < 8:
             continue
-        # 取所有数字单元格，跳过期号本身
-        nums = _to_ints([c for c in row if c != issue])
-        # 红 1-33 共 6 个，蓝 1-16 共 1 个，按出现顺序取
-        reds = [n for n in nums if 1 <= n <= 33][:6]
-        blues = [n for n in nums if 1 <= n <= 16]
-        blue = blues[0] if blues else None
-        if len(reds) == 6 and blue is not None:
-            date = next((c for c in row if "-" in c and c.count("-") == 2), "")
-            results.append(
-                {
-                    "issue": issue,
-                    "date": date,
-                    "red": ",".join(f"{n:02d}" for n in sorted(reds)),
-                    "blue": f"{blue:02d}",
-                }
-            )
+        issue = row[0].strip()
+        if not (issue.isdigit() and len(issue) >= 5):
+            continue
+
+        # --- 严格按位置取号并校验 ---
+        red_cells = [c.strip() for c in row[1:7]]
+        blue_cell = row[7].strip()
+        if not all(c.isdigit() for c in red_cells) or not blue_cell.isdigit():
+            continue
+        reds = [int(c) for c in red_cells]
+        blue = int(blue_cell)
+
+        # 规则校验：红球 6 个互不重复且在 1-33；蓝球在 1-16
+        if len(set(reds)) != 6:
+            continue
+        if not all(1 <= n <= 33 for n in reds):
+            continue
+        if not (1 <= blue <= 16):
+            continue
+
+        date = next((c.strip() for c in row if c.count("-") == 2 and c.strip()[:4].isdigit()), "")
+        results.append(
+            {
+                "issue": issue,
+                "date": date,
+                "red": ",".join(f"{n:02d}" for n in sorted(reds)),
+                "blue": f"{blue:02d}",
+            }
+        )
     return results
+
+
+def sanity_check(rows: list[dict]) -> list[str]:
+    """
+    对抓取结果做数据质量体检，返回告警列表（空列表 = 通过）。
+    重点防御「列错位」这类静默数据污染。
+    """
+    warns: list[str] = []
+    if not rows:
+        return ["未解析到任何数据"]
+
+    from collections import Counter
+
+    n = len(rows)
+    blues = [int(r["blue"]) for r in rows]
+    bc = Counter(blues)
+
+    # 1) 蓝球必须覆盖较多号码；若集中在少数几个，说明列取错了
+    if n >= 100 and len(bc) < 14:
+        warns.append(f"蓝球只出现 {len(bc)}/16 种取值，疑似列错位")
+
+    # 2) 蓝球应近似均匀（期望 n/16）。最大频次远超期望即异常
+    exp = n / 16
+    if n >= 100 and max(bc.values()) > exp * 2.2:
+        top = bc.most_common(1)[0]
+        warns.append(f"蓝球 {top[0]:02d} 出现 {top[1]} 次，远超期望 {exp:.1f} 次，疑似列错位")
+
+    # 3) 蓝球不应恒等于最小红球（这正是历史 bug 的特征）
+    same = sum(1 for r in rows if int(r["blue"]) == int(r["red"].split(",")[0]))
+    if same > n * 0.3:
+        warns.append(f"{same}/{n} 期的蓝球等于最小红球，几乎可以断定解析错列")
+
+    # 4) 红球整体频率应接近 n*6/33
+    from collections import Counter as C2
+
+    rc = C2()
+    for r in rows:
+        rc.update(int(x) for x in r["red"].split(","))
+    if n >= 100:
+        exp_r = n * 6 / 33
+        if max(rc.values()) > exp_r * 1.8 or len(rc) < 33:
+            warns.append("红球频率分布异常，可能存在数据污染")
+
+    return warns
 
 
 def fetch(limit: int = 200) -> list[dict]:
@@ -126,6 +194,14 @@ def main() -> int:
     if not rows:
         print("✗ 未解析到任何数据，请检查数据源结构是否变化。")
         return 1
+
+    warns = sanity_check(rows)
+    if warns:
+        print("✗ 数据质量体检未通过，已中止写入（避免污染历史库）：")
+        for w in warns:
+            print(f"    - {w}")
+        return 1
+    print("✓ 数据质量体检通过（蓝球分布均匀、红蓝列未错位）")
 
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     with open(OUT_PATH, "w", newline="", encoding="utf-8-sig") as f:

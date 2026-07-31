@@ -9,9 +9,10 @@
 
 接口：
     GET  /                 -> 前端单页 (index.html)
-    GET  /api/trend        -> 走势摘要（热号/冷号/区间/每号频率遗漏）
-    POST /api/generate     -> 按 {strategy, count, dedupe} 生成号码
-    GET  /api/refresh      -> 重新抓取最新历史数据
+    GET  /api/trend        -> 走势摘要（热号/冷号/区间/每号频率遗漏/形态统计）
+    POST /api/generate     -> 按 {strategy, count, dedupe, blueCover, shapeFilter} 生成号码
+    POST /api/backtest     -> 按 {strategy, count, periods, blueCover, shapeFilter} 回测
+    GET  /api/refresh      -> 重新抓取最新历史数据（含数据质量体检）
 """
 
 from __future__ import annotations
@@ -27,7 +28,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
-from ssq import generate_numbers, TrendAnalyzer, load_history  # noqa: E402
+from ssq import (  # noqa: E402
+    STRATEGIES,
+    STRATEGY_DESC,
+    TrendAnalyzer,
+    backtest,
+    generate_numbers,
+    load_history,
+    shape_of,
+)
 
 DATA = os.path.join(HERE, "data", "sample_history.csv")
 INDEX = os.path.join(HERE, "index.html")
@@ -81,16 +90,19 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if path not in ("/api/generate", "/api/backtest"):
+            self._send_json({"error": "not found"}, 404)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length) if length else b"{}"
+            data = json.loads(raw or b"{}")
+        except Exception:
+            data = {}
         if path == "/api/generate":
-            try:
-                length = int(self.headers.get("Content-Length", 0))
-                raw = self.rfile.read(length) if length else b"{}"
-                data = json.loads(raw or b"{}")
-            except Exception:
-                data = {}
             self._send_json(self._generate(data))
         else:
-            self._send_json({"error": "not found"}, 404)
+            self._send_json(self._backtest(data))
 
     # ---------- 业务逻辑 ----------
     def _trend(self):
@@ -110,14 +122,34 @@ class Handler(BaseHTTPRequestHandler):
                 b: {"freq": bf.get(b, 0), "omission": bo.get(b, ta.n)}
                 for b in range(1, 17)
             }
+            st = ta.shape_stats()
+            bounds = ta.shape_bounds()
+            latest = draws[-1] if draws else None
             return {
                 "ok": True,
                 "n": ta.n,
+                "latest": (
+                    {"issue": latest.issue, "date": latest.date,
+                     "reds": sorted(latest.reds), "blue": latest.blue}
+                    if latest else None
+                ),
                 "hot": [[k, v] for k, v in hot],
                 "cold": [[k, v] for k, v in cold],
                 "zones": ta.zone_distribution(),
                 "red": red,
                 "blue": blue,
+                "shape": st,
+                "bounds": {
+                    "sum": [bounds["sum_min"], bounds["sum_max"]],
+                    "span": [bounds["span_min"], bounds["span_max"]],
+                    "odd": sorted(bounds["odd_ok"]),      # type: ignore[arg-type]
+                    "big": sorted(bounds["big_ok"]),      # type: ignore[arg-type]
+                    "maxConsecutive": bounds["max_consecutive"],
+                    "minAc": bounds["min_ac"],
+                },
+                "strategies": [
+                    {"key": k, "desc": STRATEGY_DESC[k]} for k in STRATEGIES
+                ],
             }
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}
@@ -129,16 +161,66 @@ class Handler(BaseHTTPRequestHandler):
         except (TypeError, ValueError):
             count = 5
         dedupe = bool(data.get("dedupe", True))
+        blue_cover = bool(data.get("blueCover", False))
+        shape_filter = bool(data.get("shapeFilter", False))
         try:
             draws = generate_numbers(
-                DATA, count=count, strategy=strategy, dedupe=dedupe
+                DATA,
+                count=count,
+                strategy=strategy,
+                dedupe=dedupe,
+                blue_cover=blue_cover,
+                shape_filter=shape_filter,
             )
+            covered = len(set(d.blue for d in draws))
             return {
                 "ok": True,
                 "strategy": strategy,
                 "count": len(draws),
-                "numbers": [{"reds": sorted(d.reds), "blue": d.blue} for d in draws],
+                "cost": len(draws) * 2,
+                "blueCover": blue_cover,
+                "shapeFilter": shape_filter,
+                "blueCovered": covered,
+                # 蓝球覆盖数 / 16 = 本期至少中一注六等奖的确定概率
+                "guaranteeRate": round(min(covered, 16) / 16, 4),
+                "numbers": [
+                    {
+                        "reds": sorted(d.reds),
+                        "blue": d.blue,
+                        "shape": {
+                            k: (list(v) if isinstance(v, tuple) else v)
+                            for k, v in shape_of(d.reds).items()
+                        },
+                    }
+                    for d in draws
+                ],
             }
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def _backtest(self, data):
+        strategy = str(data.get("strategy", "random"))
+        try:
+            count = max(1, min(int(data.get("count", 5)), 50))
+        except (TypeError, ValueError):
+            count = 5
+        try:
+            periods = max(20, min(int(data.get("periods", 150)), 400))
+        except (TypeError, ValueError):
+            periods = 150
+        try:
+            draws = _load()
+            r = backtest(
+                draws,
+                count=count,
+                strategy=strategy,
+                periods=periods,
+                blue_cover=bool(data.get("blueCover", False)),
+                shape_filter=bool(data.get("shapeFilter", False)),
+                min_train=min(200, max(50, len(draws) - periods)),
+            )
+            r["ok"] = True
+            return r
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}
 
@@ -146,20 +228,43 @@ class Handler(BaseHTTPRequestHandler):
         try:
             import fetch_data
 
-            rows = fetch_data.fetch(300)
+            rows = fetch_data.fetch(500)
+            # ★ 必须先体检再落盘：历史上出现过「蓝球列错位」污染整个数据集，
+            #   一旦写入会静默毁掉全部走势分析与回测结论。
+            warns = fetch_data.sanity_check(rows)
+            if warns:
+                return {"ok": False, "error": "数据质量体检未通过：" + "；".join(warns)}
             os.makedirs(os.path.dirname(DATA), exist_ok=True)
             with open(DATA, "w", newline="", encoding="utf-8-sig") as f:
                 w = csv.DictWriter(f, fieldnames=["issue", "date", "red", "blue"])
                 w.writeheader()
                 w.writerows(rows)
-            return {"ok": True, "count": len(rows)}
+            return {
+                "ok": True,
+                "count": len(rows),
+                "latest": rows[0] if rows else None,
+                "checked": True,
+            }
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}
 
 
+class _Server(ThreadingHTTPServer):
+    # Windows 下 SO_REUSEADDR 允许多个进程同时绑定同一端口，
+    # 会导致「改了代码却还是旧行为」的诡异现象（请求被残留的旧进程接管）。
+    # 这里显式关闭，端口被占用时直接报错，避免静默踩坑。
+    allow_reuse_address = False
+    daemon_threads = True
+
+
 def main() -> None:
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-    srv = ThreadingHTTPServer(("0.0.0.0", port), Handler)
+    try:
+        srv = _Server(("0.0.0.0", port), Handler)
+    except OSError as e:
+        print(f"✗ 端口 {port} 启动失败：{e}")
+        print(f"  可能已有服务在运行，请先关闭，或换端口： python app.py {port + 1}")
+        raise SystemExit(1)
     print(f"双色球选号 Web 已启动： http://localhost:{port}")
     print("按 Ctrl+C 停止。")
     try:

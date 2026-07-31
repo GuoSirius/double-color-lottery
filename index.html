@@ -161,6 +161,67 @@
   .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 30px 0; }
   .status { font-size: 12.5px; color: var(--muted); margin-top: 12px; min-height: 18px; }
   a { color: var(--accent); }
+
+  /* 开关 */
+  .toggle {
+    display: flex; align-items: flex-start; gap: 11px; padding: 11px 12px; cursor: pointer;
+    border: 1px solid var(--border); border-radius: 13px; background: var(--panel-strong);
+    margin-bottom: 9px; transition: all .22s cubic-bezier(.16,1,.3,1);
+  }
+  .toggle:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .toggle.on { border-color: var(--accent); background: linear-gradient(135deg, rgba(139,92,246,.18), rgba(59,130,246,.12)); }
+  .sw {
+    width: 38px; height: 21px; border-radius: 999px; background: var(--border); position: relative;
+    flex-shrink: 0; margin-top: 2px; transition: background .25s;
+  }
+  .sw::after {
+    content: ''; position: absolute; top: 2.5px; left: 2.5px; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--text); transition: transform .25s cubic-bezier(.16,1,.3,1);
+  }
+  .toggle.on .sw { background: var(--accent); }
+  .toggle.on .sw::after { transform: translateX(17px); background: #fff; }
+  .toggle .tt { font-size: 13px; font-weight: 700; }
+  .toggle .td { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+
+  /* 保底提示条 */
+  .guarantee {
+    display: none; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 14px;
+    border-radius: 13px; font-size: 12.5px; line-height: 1.55;
+    border: 1px solid rgba(34,197,94,.4); background: rgba(34,197,94,.1);
+  }
+  .guarantee.show { display: flex; }
+  .guarantee.partial { border-color: rgba(251,191,36,.4); background: rgba(251,191,36,.1); }
+  .guarantee .ic { font-size: 19px; }
+  .guarantee b { color: var(--text); }
+
+  /* 号码形态标签 */
+  .shape-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+  .stag {
+    font-size: 10.5px; color: var(--muted); background: var(--panel);
+    border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px;
+  }
+  .ticket { flex-wrap: wrap; }
+  .ticket .nums { min-width: 0; }
+
+  /* 回测 */
+  .bt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px,1fr)); gap: 10px; margin-bottom: 14px; }
+  .bt-cell {
+    background: var(--panel-strong); border: 1px solid var(--border); border-radius: 13px; padding: 12px 13px;
+  }
+  .bt-cell .k { font-size: 11px; color: var(--muted); }
+  .bt-cell .v { font-size: 21px; font-weight: 800; margin-top: 4px; letter-spacing: -.5px; }
+  .bt-cell.hl { border-color: var(--accent); background: linear-gradient(135deg, rgba(139,92,246,.18), rgba(59,130,246,.1)); }
+  .bt-cell.neg .v { color: var(--hot); }
+  .lv-list { display: flex; flex-wrap: wrap; gap: 7px; }
+  .lv {
+    font-size: 12px; padding: 5px 11px; border-radius: 9px;
+    background: var(--panel-strong); border: 1px solid var(--border);
+  }
+  .lv b { color: var(--accent); }
+  .note {
+    font-size: 11.5px; color: var(--muted); line-height: 1.65; margin-top: 12px;
+    padding-top: 11px; border-top: 1px dashed var(--border);
+  }
 </style>
 </head>
 <body>
@@ -171,14 +232,17 @@
       <div class="logo">双</div>
       <div>
         <h1>双色球智能选号</h1>
-        <p>走势分析 · 随机/加权生成 · 指定注数</p>
+        <p>走势分析 · 6 种选号模式 · 保底覆盖 · 历史回测</p>
       </div>
     </div>
     <button class="theme-btn" id="themeBtn">🌗 切换主题</button>
   </div>
 
   <div class="disclaimer">
-    <b>理性购彩提示：</b>双色球每期开奖是独立随机过程，历史走势不影响未来结果。本工具仅为按统计偏好生成号码的娱乐参考，<b>不保证中奖</b>。请量力而行。
+    <b>先说清楚，别被"预测"两个字骗了：</b>双色球每期开奖独立均匀随机，<b>任何算法都无法提高 1–4 等奖的概率</b>。
+    走势、冷热、形态都只影响号码"长什么样"，不影响中不中。<br>
+    本工具唯一<b>数学上确定有效</b>的功能是「🛡️ 蓝球全覆盖」——买满 16 注覆盖全部蓝球，可保证<b>每期至少中 1 注六等奖（5 元）</b>。
+    但成本 32 元、保底回 5 元，这是<b>提高中奖率，不是提高收益</b>。所有结论都可以用下方「历史回测」自行验证。请理性购彩。
   </div>
 
   <div class="grid">
@@ -190,6 +254,26 @@
         <div class="strat" data-s="hot"><div class="t">🔥 追热</div><div class="d">高频优先</div></div>
         <div class="strat" data-s="cold"><div class="t">❄️ 博冷</div><div class="d">高遗漏优先</div></div>
         <div class="strat" data-s="balanced"><div class="t">⚖️ 均衡</div><div class="d">冷热兼顾</div></div>
+        <div class="strat" data-s="zone"><div class="t">🧭 分区</div><div class="d">三区各取2个</div></div>
+        <div class="strat" data-s="spread"><div class="t">🎯 分散</div><div class="d">避开大众号</div></div>
+      </div>
+
+      <div class="field">
+        <label>增强选项</label>
+        <div class="toggle" id="tgCover" data-k="blueCover">
+          <div class="sw"></div>
+          <div>
+            <div class="tt">🛡️ 蓝球全覆盖（保底）</div>
+            <div class="td">16 注覆盖全部蓝球，<b>数学上保证每期至少中 1 注六等奖</b>。这是本工具唯一确定有效的提升。</div>
+          </div>
+        </div>
+        <div class="toggle" id="tgShape" data-k="shapeFilter">
+          <div class="sw"></div>
+          <div>
+            <div class="tt">📐 形态过滤</div>
+            <div class="td">剔除和值/奇偶/连号/AC 值过于极端的组合，降低撞号被摊薄奖金的概率。</div>
+          </div>
+        </div>
       </div>
 
       <div class="field">
@@ -204,7 +288,7 @@
           <span class="chip" data-n="5">5</span>
           <span class="chip" data-n="10">10</span>
           <span class="chip" data-n="20">20</span>
-          <span class="chip" data-n="50">50</span>
+          <span class="chip" data-n="16" title="覆盖全部 16 个蓝球所需注数" style="border-color:var(--accent);color:var(--text)">16 · 保底</span>
         </div>
       </div>
 
@@ -212,6 +296,9 @@
       <div class="row2">
         <button class="ghost-btn" id="refreshBtn">🔄 更新数据</button>
         <button class="ghost-btn" id="copyBtn">📋 复制结果</button>
+      </div>
+      <div class="row2">
+        <button class="ghost-btn" id="btBtn" style="flex:1">📊 用历史数据回测当前配置</button>
       </div>
       <div class="status" id="status">就绪。</div>
     </div>
@@ -236,10 +323,18 @@
         </div>
         <div class="section-title">红球走势（颜色越红越热 · 蓝边为冷号）</div>
         <div class="balls" id="redBalls"></div>
+        <div class="section-title">真实开奖的形态特征（形态过滤依据）</div>
+        <div class="bt-grid" id="shapeStats"></div>
+      </div>
+
+      <div class="card" id="btCard" style="margin-bottom:22px;display:none;">
+        <h2><span class="dot"></span>历史回测 <span id="btMeta" style="color:var(--muted);font-weight:400;font-size:12px;"></span></h2>
+        <div id="btBody"></div>
       </div>
 
       <div class="card">
         <h2><span class="dot"></span>生成结果</h2>
+        <div class="guarantee" id="guarantee"></div>
         <div id="results"><div class="empty">点击「生成号码」查看结果</div></div>
       </div>
     </div>
@@ -250,6 +345,8 @@
 const $ = (s) => document.querySelector(s);
 let currentStrategy = 'random';
 let lastNumbers = [];
+const opts = { blueCover: false, shapeFilter: false };
+const LABELS = { random:'纯随机', hot:'追热', cold:'博冷', balanced:'冷热均衡', zone:'分区', spread:'分散' };
 
 /* ---------- 主题 ---------- */
 const themeBtn = $('#themeBtn');
@@ -268,6 +365,19 @@ $('#strategies').addEventListener('click', (e) => {
   document.querySelectorAll('.strat').forEach(s => s.classList.remove('active'));
   el.classList.add('active');
   currentStrategy = el.dataset.s;
+});
+
+/* ---------- 增强选项开关 ---------- */
+document.querySelectorAll('.toggle').forEach(t => {
+  t.onclick = () => {
+    const k = t.dataset.k;
+    opts[k] = !opts[k];
+    t.classList.toggle('on', opts[k]);
+    if (k === 'blueCover' && opts[k] && +countEl.value < 16) {
+      setCount(16);
+      $('#status').textContent = '已自动调整为 16 注 —— 覆盖全部蓝球才能触发保底。';
+    }
+  };
 });
 
 /* ---------- 注数 ---------- */
@@ -296,7 +406,25 @@ async function loadTrend() {
       const cls = info.tier === '热' ? 'hot' : (info.tier === '冷' ? 'cold' : '');
       return `<div class="ball red ${cls}" title="红球${pad(n)} 出现${info.freq}次 遗漏${info.omission}期">${pad(n)}</div>`;
     }).join('');
+    if (d.latest) $('#trendN').textContent += ` · 最新 ${d.latest.issue} 期（${d.latest.date}）`;
+    if (d.shape && d.bounds) renderShapeStats(d.shape, d.bounds);
   } catch (e) { $('#trendN').textContent = '（加载出错）'; }
+}
+
+function renderShapeStats(s, b) {
+  const topOdd = Object.entries(s.odd_dist).sort((a,c) => c[1]-a[1])[0];
+  const zone = s.top_zone_patterns[0];
+  $('#shapeStats').innerHTML = `
+    <div class="bt-cell"><div class="k">和值均值</div><div class="v">${s.sum.mean}</div>
+      <div class="k" style="margin-top:4px">中间80%：${s.sum.p10}–${s.sum.p90}</div></div>
+    <div class="bt-cell"><div class="k">跨度均值</div><div class="v">${s.span.mean}</div>
+      <div class="k" style="margin-top:4px">中间80%：${s.span.p10}–${s.span.p90}</div></div>
+    <div class="bt-cell"><div class="k">最常见奇偶比</div><div class="v">${topOdd[0]}:${6-topOdd[0]}</div>
+      <div class="k" style="margin-top:4px">出现 ${topOdd[1]} 期</div></div>
+    <div class="bt-cell"><div class="k">最常见区间比</div><div class="v" style="font-size:19px">${zone.pattern}</div>
+      <div class="k" style="margin-top:4px">出现 ${zone.count} 期</div></div>
+    <div class="bt-cell"><div class="k">过滤区间</div>
+      <div class="k" style="margin-top:6px;line-height:1.7">和值 ${b.sum[0]}–${b.sum[1]}<br>跨度 ${b.span[0]}–${b.span[1]}<br>连号 ≤${b.maxConsecutive} · AC ≥${b.minAc}</div></div>`;
 }
 function pad(n) { return String(n).padStart(2, '0'); }
 
@@ -307,14 +435,20 @@ $('#genBtn').onclick = async () => {
   try {
     const r = await fetch('/api/generate', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ strategy: currentStrategy, count: +countEl.value, dedupe: true })
+      body: JSON.stringify({
+        strategy: currentStrategy, count: +countEl.value, dedupe: true,
+        blueCover: opts.blueCover, shapeFilter: opts.shapeFilter
+      })
     });
     const d = await r.json();
     if (!d.ok) { $('#status').textContent = '错误：' + d.error; return; }
     lastNumbers = d.numbers;
     renderResults(d.numbers);
-    const label = {random:'纯随机',hot:'追热',cold:'博冷',balanced:'冷热均衡'}[d.strategy];
-    $('#status').textContent = `已生成 ${d.count} 注（策略：${label}）`;
+    renderGuarantee(d);
+    const tags = [LABELS[d.strategy]];
+    if (d.blueCover) tags.push('蓝球覆盖');
+    if (d.shapeFilter) tags.push('形态过滤');
+    $('#status').textContent = `已生成 ${d.count} 注 · 成本 ${d.cost} 元（${tags.join(' + ')}）`;
   } catch (e) {
     $('#status').textContent = '请求失败：' + e.message;
   } finally {
@@ -327,11 +461,78 @@ function renderResults(nums) {
   if (!nums.length) { box.innerHTML = '<div class="empty">无结果</div>'; return; }
   box.innerHTML = '<div class="results">' + nums.map((item, i) => {
     const reds = item.reds.map(n => `<span class="nb r">${pad(n)}</span>`).join('');
+    const s = item.shape;
+    const tags = s ? `<div class="shape-tags">
+        <span class="stag">和 ${s.sum}</span>
+        <span class="stag">${s.odd}奇${s.even}偶</span>
+        <span class="stag">区间 ${s.zone.join('-')}</span>
+        <span class="stag">跨度 ${s.span}</span>
+        <span class="stag">AC ${s.ac}</span>
+      </div>` : '';
     return `<div class="ticket" style="animation-delay:${i*45}ms">
       <span class="idx">${i+1}</span>
-      <div class="nums">${reds}<span class="plus">+</span><span class="nb b">${pad(item.blue)}</span></div>
+      <div class="nums">${reds}<span class="plus">+</span><span class="nb b">${pad(item.blue)}</span>${tags}</div>
     </div>`;
   }).join('') + '</div>';
+}
+
+function renderGuarantee(d) {
+  const el = $('#guarantee');
+  if (!d.blueCover) { el.className = 'guarantee'; el.innerHTML = ''; return; }
+  const full = d.blueCovered >= 16;
+  el.className = 'guarantee show' + (full ? '' : ' partial');
+  el.innerHTML = full
+    ? `<span class="ic">🛡️</span><div>已覆盖<b>全部 16 个蓝球</b>。本期<b>数学上保证至少中 1 注六等奖（5 元）</b>，
+       与走势和运气无关。成本 ${d.cost} 元，保底回收 5 元 —— 这是「必中」，不是「盈利」。</div>`
+    : `<span class="ic">⚠️</span><div>当前覆盖 <b>${d.blueCovered}/16</b> 个蓝球，本期中六等奖的确定概率为
+       <b>${(d.guaranteeRate*100).toFixed(1)}%</b>。买满 <b>16 注</b>才能达到 100% 保底。</div>`;
+}
+
+/* ---------- 回测 ---------- */
+$('#btBtn').onclick = async () => {
+  const btn = $('#btBtn'); btn.disabled = true; btn.textContent = '回测中…';
+  $('#status').textContent = '正在用真实历史逐期回测，请稍候…';
+  try {
+    const r = await fetch('/api/backtest', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        strategy: currentStrategy, count: +countEl.value, periods: 200,
+        blueCover: opts.blueCover, shapeFilter: opts.shapeFilter
+      })
+    });
+    const d = await r.json();
+    if (!d.ok) { $('#status').textContent = '回测失败：' + d.error; return; }
+    renderBacktest(d);
+    $('#status').textContent = `回测完成：${d.periods_tested} 期`;
+  } catch (e) { $('#status').textContent = '回测出错：' + e.message; }
+  finally { btn.disabled = false; btn.textContent = '📊 用历史数据回测当前配置'; }
+};
+
+function renderBacktest(d) {
+  $('#btCard').style.display = '';
+  const tags = [LABELS[d.strategy]];
+  if (d.blue_cover) tags.push('蓝球覆盖');
+  if (d.shape_filter) tags.push('形态过滤');
+  $('#btMeta').textContent = `· ${tags.join(' + ')} · 每期 ${d.count_per_period} 注 · 共 ${d.periods_tested} 期`;
+
+  const lv = Object.entries(d.levels || {});
+  $('#btBody').innerHTML = `
+    <div class="bt-grid">
+      <div class="bt-cell hl"><div class="k">期命中率（至少中1注）</div><div class="v">${(d.period_hit_rate*100).toFixed(1)}%</div></div>
+      <div class="bt-cell"><div class="k">注命中率</div><div class="v">${(d.ticket_hit_rate*100).toFixed(2)}%</div></div>
+      <div class="bt-cell"><div class="k">总投入</div><div class="v">${d.total_cost}<span style="font-size:12px">元</span></div></div>
+      <div class="bt-cell"><div class="k">总回报</div><div class="v">${d.total_prize}<span style="font-size:12px">元</span></div></div>
+      <div class="bt-cell neg"><div class="k">收益率 ROI</div><div class="v">${(d.roi*100).toFixed(0)}%</div></div>
+    </div>
+    <div class="section-title">中奖等级分布</div>
+    <div class="lv-list">${lv.length ? lv.map(([k,v]) => `<span class="lv">${k} <b>${v}</b> 次</span>`).join('') : '<span class="lv">无中奖</span>'}</div>
+    <div class="note">
+      回测采用<b>走查式</b>验证：预测第 N 期时只使用前 N-1 期数据，绝不使用未来信息。<br>
+      ${d.blue_cover && d.count_per_period >= 16
+        ? '✅ 蓝球全覆盖下期命中率为 <b>100%</b> —— 这是数学保证，不是运气。'
+        : '⚠️ 各选号策略的期命中率差异属于随机波动，开启<b>蓝球全覆盖 + 16 注</b>可让期命中率锁定在 100%。'}<br>
+      ⚠️ 双色球整体返奖率约 50%，<b>长期 ROI 必然为负</b>。回测用于验证保底是否真的保底，而不是寻找必胜法。
+    </div>`;
 }
 
 /* ---------- 复制 ---------- */
