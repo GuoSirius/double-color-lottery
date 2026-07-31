@@ -75,7 +75,7 @@ npx cap open android
 
 ### 第 7 步：导出安装包（APK）
 在 Android Studio 里：
-1. 顶部菜单 **Build → Build Bundle(s) / APK(s) → Build APK(s)**
+1. 顶部菜单 **Build → Generate App Bundles or APKs → Build APK(s)**
 2. 编完右下角会弹提示，点 **locate** 打开输出目录。
 3. 文件在：`app/android/app/build/outputs/apk/debug/app-debug.apk`
 4. 把这个 `app-debug.apk` 拷到安卓手机上，点开安装即可（手机可能提示「允许安装未知来源应用」，同意即可）。
