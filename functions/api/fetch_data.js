@@ -114,9 +114,18 @@ export function sanityCheck(rows) {
   return warns;
 }
 
+// 校验历史期数：最小 5 期，最大 99999 期（与 py 版一致）。非法则抛错。
+export function validateLimit(n) {
+  const v = parseInt(n, 10);
+  if (!Number.isFinite(v) || v < 5 || v > 99999)
+    throw new Error("历史期数需在 5–99999 期之间");
+  return v;
+}
+
 // 抓取最近 limit 期（默认 500）。500 接口按期号降序返回（最新在前）。
 export async function fetchLatest(limit = 500) {
-  const url = `${BASE_URL}?start=23001&end=26999&limit=${limit}`;
+  const count = validateLimit(limit);
+  const url = `${BASE_URL}?start=23001&end=26999&limit=${count}`;
   const res = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0" },
   });
