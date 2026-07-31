@@ -32,10 +32,17 @@ ssq_tool/
 | GET  | /api/trend    | 走势摘要：热号/冷号/区间/每号频率遗漏/形态统计 |
 | POST | /api/generate | 按策略生成号码 `{strategy,count,dedupe,blueCover,shapeFilter}` |
 | POST | /api/backtest | 滚动回测 `{strategy,count,periods,blueCover,shapeFilter}` |
-| GET  | /api/refresh  | 重新抓取最新历史（含数据体检），写入 KV |
+| GET  | /api/refresh  | 重新抓取最新历史（含数据体检），写入 KV。支持 `?count=N`（5–99999，默认 500）|
 
 > 数学提醒：每期开奖独立均匀随机，本工具「走势/加权」仅为娱乐参考，不提高中奖概率；
 > 蓝球买满 16 注（blueCover=true）是唯一数学上确定保底六等奖的手段。
+
+### 手动设定抓取的历史期数
+
+- **Web**：刷新按钮上方有「刷新历史期数」输入框（步进按钮），取值范围 **5–99999**，刷新时通过 `GET /api/refresh?count=N` 传给后端。
+- **CLI（py 版）**：`python cli.py --history 500`（或 `--history 99999`）抓取并写入默认 `data/sample_history.csv`。
+- 前后端（py / node）统一约束：最小 5 期，最大 99999 期；越界会被拒绝（Web 前端先校验，后端再次校验）。
+- 注：500 彩票网接口实际可返回的历史上限约数千期，请求超过可用量时返回全部可用数据。
 
 ## 本地验证（无需部署）
 

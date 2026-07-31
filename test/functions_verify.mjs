@@ -9,6 +9,8 @@ import { parseRows, sanityCheck, toCSV } from "../functions/api/fetch_data.js";
 import { onRequest as trendFn } from "../functions/api/trend.js";
 import { onRequestPost as generateFn } from "../functions/api/generate.js";
 import { onRequestPost as backtestFn } from "../functions/api/backtest.js";
+import { onRequestGet as refreshFn } from "../functions/api/refresh.js";
+import { validateLimit } from "../functions/api/fetch_data.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CSV_PATH = join(HERE, "..", "data", "sample_history.csv");
@@ -111,6 +113,24 @@ console.log("\n[5] refresh 解析器 + 数据体检防御");
   const cwarns = sanityCheck(corrupt);
   ok("错位数据被体检拦截", cwarns.length > 0, `warns=${cwarns.length}`);
   ok("拦截原因含『最小红球』或『列错位』", cwarns.some(w=>w.includes("最小红球")||w.includes("列错位")));
+}
+
+console.log("\n[6] 历史期数参数校验（5–99999，与 py 版一致）");
+{
+  ok("validateLimit(5) = 5", validateLimit(5) === 5);
+  ok("validateLimit(99999) = 99999", validateLimit(99999) === 99999);
+  let threw = false; try { validateLimit(3); } catch { threw = true; }
+  ok("validateLimit(3) 越界抛错", threw);
+  threw = false; try { validateLimit(100000); } catch { threw = true; }
+  ok("validateLimit(100000) 越界抛错", threw);
+  threw = false; try { validateLimit("abc"); } catch { threw = true; }
+  ok("validateLimit('abc') 非数字抛错", threw);
+
+  // refresh 越界应被拒（且不触发网络请求，validateLimit 先抛错）
+  const over = await resJson(await refreshFn({ request: new Request("http://x/api/refresh?count=999999") }));
+  ok("refresh?count=999999 被拒(ok=false)", over.ok === false, JSON.stringify(over));
+  const under = await resJson(await refreshFn({ request: new Request("http://x/api/refresh?count=3") }));
+  ok("refresh?count=3 被拒(ok=false)", under.ok === false, JSON.stringify(under));
 }
 
 console.log(`\n==== 结果： ${pass} 通过 / ${fail} 失败 ====\n`);
