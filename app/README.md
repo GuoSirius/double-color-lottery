@@ -60,7 +60,10 @@ npm run sync
 npm run cap:add:android
 ```
 - 会生成 `app/android/` 文件夹（这是真正的安卓原生工程）。
-- 本条命令已包含自动补丁：把 Gradle 升级到 **8.x 最新稳定版**（运行时自动获取，当前为 8.14.5）并使用**腾讯云镜像**，以兼容 JDK 21、避免国内下载 Gradle 被墙。
+- 本条命令已包含**自动补丁**，帮你做三件事（详见「六（附）· 5」）：
+  1. **Gradle** 升级到 8.x 最新稳定版（兼容 JDK 21），下载源切腾讯云镜像；
+  2. **AGP**（安卓 Gradle 插件）从模板默认的 8.2.1 升级到与你本机 Android Studio 匹配的版本；
+  3. **Maven 仓库**注入阿里云镜像，避免国内拉不到 AGP 卡死。
 - 如果你之前用 `npx cap add android` 生成过，单独打补丁：
   ```bash
   npm run patch:android
@@ -143,7 +146,9 @@ npx cap sync                        # 第三步：同步进原生工程
 | `npx cap` 提示找不到命令 | 确认在 `app/` 目录、且 `npm install` 已完成 |
 | Android Studio 一直「Building / Indexing」 | 首次下载 SDK/Gradle，正常现象，等它转完 |
 | **首次启动弹窗："Unable to access Android SDK add-on list"** | 这是去 Google 拉 SDK 列表被墙。点 **Cancel** 跳过，进 IDE 后通过 `SDK Manager → SDK Update Sites` 换成清华/中科大镜像（见下方「附」），再下载 SDK。 |
-| **弹窗 "Gradle 8.2.1 is incompatible with the Gradle JVM version 25"** | 你装了 JDK 21，但 Capacitor 6 默认 Gradle 8.2.1 不支持 JDK 21。运行 `npm run patch:android` 自动升级 Gradle 到 **8.x 最新版**并换国内镜像；或另装 JDK 17（见下方「附」）。 |
+| **弹窗 "Gradle 8.2.1 is incompatible with the Gradle JVM version 25"** | 你装了 JDK 21，但 Capacitor 6 默认 Gradle 8.2.1 不支持 JDK 21。运行 `npm run patch:android` 自动升级 **Gradle + AGP** 并换国内镜像；或另装 JDK 17（见下方「附 5」）。 |
+| **报错 "This project requires a newer version of Android Studio"** | AGP 版本高于你的 IDE。要么升级 Android Studio，要么按「附 5」的对照表指定较低的 AGP：`AGP_VERSION=8.7.3 npm run patch:android`。 |
+| 同步时报 `Could not resolve com.android.tools.build:gradle` | 拉 AGP 被墙。`npm run patch:android` 会自动注入阿里云镜像；已经跑过还失败就换手机热点重试。 |
 | **警告 `Using flatDir should be avoided...`** | **无害警告，可直接忽略**，不影响打包。这是 Capacitor 官方模板自带的（用于加载 Cordova 插件的本地 aar/jar），本项目没装 Cordova 插件所以那个目录是空的。详见下方「附 7」。 |
 | 构建日志里一堆黄色 `warning:` / `Deprecated` | 只要最后显示 **BUILD SUCCESSFUL** 就是成功了。Gradle 的警告 ≠ 错误，真正的失败会明确写 **BUILD FAILED** 并给出 `* What went wrong:` 段落。 |
 | 手机装不上 APK | 允许「未知来源」；或改用 Android Studio 直接 Run 到手机 |
@@ -193,29 +198,74 @@ echo src01=https\://mirrors.tuna.tsinghua.edu.cn/android/repository/
 - 轻微卡顿是正常，耐心等；若长时间（半小时以上）不动，可搜「Gradle 国内镜像」「Android SDK 国内镜像」配置后再重试。
 - 不想等？可改用公司/手机热点网络，有时比校园网/企业网更顺。
 
-### 5. Gradle 8.2.1 与 JDK 21 不兼容
-如果你本机只装了 **JDK 21**，Android Studio 导入 `app/android` 时会弹窗：
+### 5. Gradle / AGP 版本与 JDK 21 不兼容（`npm run patch:android` 一键搞定）
+
+Capacitor 6 生成的安卓工程用的是 **Gradle 8.2.1 + AGP 8.2.1**，这套组合在 2026 年已经偏旧，典型症状是导入工程时弹窗：
 
 > The project's Gradle version Gradle 8.2.1 is incompatible with the Gradle JVM version 25.
 
-这是因为 Capacitor 6 默认模板使用 **Gradle 8.2.1**，而 Gradle 8.2.1 最高只支持 **JDK 19**，不支持 JDK 21。
+原因：Gradle 8.2.1 最高只支持 **JDK 19**，而现在新机器普遍装 JDK 21。
 
 **解决办法 A（推荐，不用额外装 JDK）**：
 ```bash
 npm run patch:android
 ```
-脚本会自动把 `app/android/gradle/wrapper/gradle-wrapper.properties` 里的 Gradle 升级到 **8.x 最新稳定版**（运行时自动获取，当前为 8.14.5；如需固定可设环境变量 `GRADLE_VERSION=8.14.5`），并把下载地址切到 **腾讯云镜像** `https://mirrors.cloud.tencent.com/gradle/`。
 
-然后回到 Android Studio，点工具栏的 **Sync Project with Gradle Files**（大象图标），或重启 Android Studio，让它重新同步。
+脚本会自动做三件事：
+
+| 项目 | 改成什么 | 说明 |
+|------|----------|------|
+| **Gradle** | 8.x 最新稳定版（当前 8.14.5） | Gradle 自 **8.4** 起支持 JDK 21；下载源切 **腾讯云镜像** |
+| **AGP** | 与你本机 Android Studio 匹配的最高版本 | 见下方「为什么 AGP 不直接顶到最新」 |
+| **Maven 仓库** | 注入**阿里云镜像** | `google()` / `mavenCentral()` 保留为兜底，镜像缺包时自动回源 |
+
+跑完回到 Android Studio，点工具栏的 **Sync Project with Gradle Files**（大象图标），或重启 Android Studio 让它重新同步。
+
+**为什么 AGP 不像 Gradle 那样直接顶到最新？**
+
+Gradle 由 wrapper 自动下载，不挑 IDE；但 **AGP 版本会反过来要求 Android Studio 的最低版本**——顶太高，IDE 会直接报 *"This project requires a newer version of Android Studio"* 连工程都打不开。
+
+所以脚本会**自动探测你本机安装的 Android Studio 版本**，取「Gradle 支持的上限」与「Android Studio 支持的上限」中较小的那个：
+
+| 你的 Android Studio | 自动选用的 AGP |
+|---------------------|----------------|
+| 2023.1.1 Hedgehog | 8.2.1 |
+| 2023.2.1 Iguana | 8.3.2 |
+| 2024.1.1 Koala | 8.5.2 |
+| 2024.2.1 Ladybug | 8.7.3 |
+| 2024.3.1 Meerkat | 8.9.3 |
+| 2024.3.2 Meerkat FD | 8.10.1 |
+| 2025.1.1 Narwhal | 8.11.1 |
+| 2025.1.3 Narwhal 3 FD | 8.13.0 |
+| **探测不到** | **8.7.3**（保守默认，Ladybug 及以上都能用） |
+
+探测路径为标准安装位置（Windows `C:\Program Files\Android\Android Studio`、macOS `/Applications/Android Studio.app` 等）。如果你装在自定义目录导致探测不到，有两种办法：
+
+```bash
+# 办法一：告诉脚本 Android Studio 装在哪
+STUDIO_PATH="D:/MyTools/Android Studio" npm run patch:android
+
+# 办法二：直接指定 AGP 版本（照上表选一个不超过你 IDE 版本的）
+AGP_VERSION=8.13.0 npm run patch:android
+```
+
+其它可用的环境变量：
+
+```bash
+GRADLE_VERSION=8.14.5 npm run patch:android   # 固定 Gradle 版本
+NO_MIRROR=1           npm run patch:android   # 不注入国内镜像（有梯子时用）
+```
+
+> 脚本是**幂等**的，重复运行不会重复注入镜像，放心多跑几次。
 
 **解决办法 B（装一个兼容的 JDK）**：
-- 安装 **JDK 17**（JDK 17 是 Android 开发最常用的 LTS 版本）。
+- 安装 **JDK 17**（Android 开发最常用的 LTS 版本）。
 - 国内下载推荐 Eclipse Temurin 镜像：
   - 清华：`https://mirrors.tuna.tsinghua.edu.cn/Adoptium/`
   - 中科大：`https://mirrors.ustc.edu.cn/Adoptium/`
 - 安装后，在弹窗里点 **Open JVM settings** → 选择 JDK 17 的路径 → 重新同步。
 
-> 提示：Capacitor 6 的默认 Gradle 版本比较保守，后续如果官方升级默认模板到 Gradle 8.x 新版，这个问题会自动消失。
+> 注意：`app/android/` 是 `npx cap add android` 的生成物，**不入库**。所以每次重新生成工程后都要再跑一次 `npm run patch:android`（或直接用 `npm run cap:add:android`，它已经包含补丁）。
 
 ### 6. 其它国际资源
 - 文档里若还有指向 `*.google.com`、`github.com` 的下载，遇到打不开就用对应国内镜像（如 `google.cn` 系列、`npmmirror`、`gitclone.com` 等）替代。
@@ -258,5 +308,19 @@ repositories {
 - **安卓（Google Play）**：一次性 $25 注册开发者；用 **Build → Generate Signed Bundle / APK** 生成 **AAB**（不是 APK），上传后台。
 - **国内渠道**（应用宝 / 华为 / 小米等）：各自开发者平台实名后上传 APK/AAB。
 - **iPhone（App Store）**：Mac + Xcode + $99/年 Apple 开发者，走 Xcode Archive 上架。
+
+### 上架前要注意 targetSdk
+
+本工程沿用 Capacitor 6 默认的 `compileSdk / targetSdk = 34`（见 `app/android/variables.gradle`），**本地安装、自用完全没问题**。但各大商店对 `targetSdk` 有硬性下限（Google Play 已要求 ≥ 35，国内渠道通常跟进稍慢），上架前需要手动调高：
+
+```gradle
+// app/android/variables.gradle
+compileSdkVersion = 35
+targetSdkVersion = 35
+```
+
+改完在 Android Studio 的 **SDK Manager** 里把对应的 Android SDK Platform 装上，再重新同步。
+
+> ⚠️ 为什么补丁脚本不帮你自动改：`targetSdk` 升到 35 会**强制启用 edge-to-edge（内容延伸到状态栏/导航栏下方）**，WebView 页面可能被状态栏遮住一截。这属于需要真机验证的 UI 变更，所以留给你在准备上架时主动做、顺便测一遍显示效果，而不是在打包脚本里悄悄改掉。
 
 > 本工程只负责「把网站变成可安装的 App 外壳」。商店账号、签名证书、上架审核需你自己在对应平台办理，我这边无法代注册。
