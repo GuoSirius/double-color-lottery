@@ -144,6 +144,8 @@ npx cap sync                        # 第三步：同步进原生工程
 | Android Studio 一直「Building / Indexing」 | 首次下载 SDK/Gradle，正常现象，等它转完 |
 | **首次启动弹窗："Unable to access Android SDK add-on list"** | 这是去 Google 拉 SDK 列表被墙。点 **Cancel** 跳过，进 IDE 后通过 `SDK Manager → SDK Update Sites` 换成清华/中科大镜像（见下方「附」），再下载 SDK。 |
 | **弹窗 "Gradle 8.2.1 is incompatible with the Gradle JVM version 25"** | 你装了 JDK 21，但 Capacitor 6 默认 Gradle 8.2.1 不支持 JDK 21。运行 `npm run patch:android` 自动升级 Gradle 到 **8.x 最新版**并换国内镜像；或另装 JDK 17（见下方「附」）。 |
+| **警告 `Using flatDir should be avoided...`** | **无害警告，可直接忽略**，不影响打包。这是 Capacitor 官方模板自带的（用于加载 Cordova 插件的本地 aar/jar），本项目没装 Cordova 插件所以那个目录是空的。详见下方「附 7」。 |
+| 构建日志里一堆黄色 `warning:` / `Deprecated` | 只要最后显示 **BUILD SUCCESSFUL** 就是成功了。Gradle 的警告 ≠ 错误，真正的失败会明确写 **BUILD FAILED** 并给出 `* What went wrong:` 段落。 |
 | 手机装不上 APK | 允许「未知来源」；或改用 Android Studio 直接 Run 到手机 |
 | App 打开后白屏 | 检查手机能否访问 `ssq-cloudflare-em8.pages.dev`（网站本身要能打开） |
 
@@ -219,6 +221,35 @@ npm run patch:android
 - 文档里若还有指向 `*.google.com`、`github.com` 的下载，遇到打不开就用对应国内镜像（如 `google.cn` 系列、`npmmirror`、`gitclone.com` 等）替代。
 
 > 提示：以上只是**下载/联网**层面的问题。代码、命令本身都没问题，网络通了照着做就能跑通。
+
+### 7. 关于 `Using flatDir should be avoided` 警告
+
+构建日志里出现这句，**是警告不是错误，可以直接无视**：
+
+```text
+Using flatDir should be avoided because it doesn't support any meta-data formats.
+```
+
+**它从哪来的**：Capacitor 官方安卓模板自带，共两处，都是生成的，不是我们写的——
+
+- `android/app/build.gradle`
+- `android/capacitor-cordova-android-plugins/build.gradle`
+
+```gradle
+repositories {
+    flatDir {
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+```
+
+**它是干嘛的**：给 Cordova 插件预留的本地 `.aar` / `.jar` 加载目录。Gradle 提示 `flatDir` 不携带 POM 元数据（拿不到传递依赖、版本冲突无法仲裁），所以官方建议少用——但作为「兜底扫本地 libs 目录」的用途，这正是它存在的意义。
+
+**对本项目的影响：零**。我们是纯 WebView 外壳，一个 Cordova 插件都没装，`src/main/libs` 是空目录，`flatDir` 实际什么都没加载。
+
+**不要手贱删掉**：删了当下确实也能编过，但以后一旦装了带原生 `.aar` 的 Cordova 插件就会直接编译失败，而且报错很难联想到这里。另外 `npx cap add android` 会重新生成整个 `android/` 目录，删了也会被覆盖回来。
+
+> 判断构建成没成，只看最后一行：**BUILD SUCCESSFUL** = 成了；**BUILD FAILED** = 失败，此时往上翻找 `* What went wrong:` 那段才是真正的错误原因。
 
 ---
 
