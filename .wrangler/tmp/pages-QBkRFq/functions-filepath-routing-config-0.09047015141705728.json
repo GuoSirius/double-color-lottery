@@ -1,0 +1,37 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/backtest",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/backtest.js:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/generate",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/generate.js:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/refresh",
+      "mountPath": "/api",
+      "method": "GET",
+      "module": [
+        "api/refresh.js:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/trend",
+      "mountPath": "/api",
+      "method": "",
+      "module": [
+        "api/trend.js:onRequest"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}
