@@ -5,3 +5,8 @@ build/
 *.hsp
 *.app
 .DS_Store
+local.properties
+oh-package-lock.json5
+.idea/
+*.iml
+

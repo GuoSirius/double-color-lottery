@@ -18,7 +18,7 @@
 | 需要 | 说明 | 获取方式 |
 |------|------|-----------|
 | **DevEco Studio** | 华为官方的鸿蒙开发工具（类似安卓的 Android Studio） | 华为开发者联盟官网 → 开发者工具 → DevEco Studio（下「HarmonyOS NEXT」版本） |
-| **HarmonyOS SDK** | 编译用的系统库 | 装好 DevEco 后第一次打开会自动提示安装，跟着点就行（需联网） |
+| **HarmonyOS SDK** | 编译用的系统库 | 装好 DevEco 后第一次打开会自动提示安装，跟着点就行（需联网）。本工程适配 **DevEco Studio 6.1.1.300（SDK 6.1.1 API 24）** |
 | **华为账号 + 实名认证** | 用来登录 DevEco、生成调试签名、以后上架应用市场 | 华为开发者联盟 https://developer.huawei.com/consumer/cn/ |
 | （上架才需要）**企业/个人开发者资质** | 发布到华为应用市场(AppGallery) 用 | 同上加开发者认证 |
 
@@ -75,7 +75,7 @@
 
 | 现象 | 处理 |
 |------|------|
-| 打开工程后一直 Sync / 转圈 | 首次下载 SDK/依赖，正常现象，等它转完 |
+| 打开工程后 Sync 失败 | 通常是 DevEco 版本与工程 SDK 版本不匹配。本工程已适配 **DevEco 6.1.1.300 / SDK 6.1.1(24)**；若你装的是其他版本，打开 `build-profile.json5` 把 `compileSdkVersion` / `compatibleSdkVersion` / `targetSdkVersion` 改成你本机 SDK Manager 里实际装的版本 |
 | 点 Run 提示「no device」 | 先连真机或启动模拟器（Device Manager） |
 | 签名报错 | 确认已登录华为账号且**实名认证**；重做第 3 步「自动生成签名」 |
 | App 打开白屏 | 手机要能访问 `ssq-cloudflare-em8.pages.dev`（网站本身要能打开） |
@@ -97,4 +97,6 @@
 - `entry/src/main/ets/pages/Index.ets` —— 加载网站的页面（改网址在这里）
 - `entry/src/main/module.json5` —— 模块/Ability 配置（图标、入口）
 - `AppScope/app.json5` —— 应用名、包名 `com.ssq.tool`、版本
-- `build-profile.json5` —— 编译配置（已设 `compatibleSdkVersion 5.0.0(12)`，即 HarmonyOS NEXT）
+- `build-profile.json5` —— 编译配置（已适配 **DevEco 6.1.1.300 / SDK 6.1.1(24)**）
+- `hvigorfile.ts` —— Hvigor 应用级构建脚本（DevEco 6.x 必需）
+- `entry/hvigorfile.ts` —— Hvigor 模块级构建脚本（DevEco 6.x 必需）
