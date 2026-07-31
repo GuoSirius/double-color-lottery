@@ -71,7 +71,7 @@
   .mobile-bar { display: none; }
   @media (max-width: 860px) {
     /* 顶部控件栏里被底部栏代劳的动作按钮在移动端隐藏，避免重复 */
-    #genBtn, #copyBtn, #btBtn { display: none; }
+    #genBtn, #copyBtn, #btBtn, #refreshBtn, #rowRefreshCopy { display: none; }
     .mobile-bar {
       display: flex; gap: 10px; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
       padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
@@ -207,6 +207,12 @@
     animation: spin .7s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .btn-spin {
+    width: 13px; height: 13px; border-radius: 50%; flex: 0 0 auto;
+    border: 2px solid currentColor; border-top-color: transparent;
+    animation: spin .7s linear infinite; display: none; margin-left: 7px; vertical-align: -2px;
+  }
+  button:disabled .btn-spin { display: inline-block; }
   a { color: var(--accent); }
 
   /* 开关 */
@@ -339,7 +345,7 @@
         </div>
       </div>
 
-      <button class="gen-btn" id="genBtn">生 成 号 码</button>
+      <button class="gen-btn" id="genBtn">生 成 号 码<span class="btn-spin"></span></button>
       <div>
         <label>刷新历史期数（5–99999）</label>
         <div class="stepper">
@@ -348,9 +354,9 @@
           <button id="histPlus">＋</button>
         </div>
       </div>
-      <div class="row2">
-        <button class="ghost-btn" id="refreshBtn">🔄 更新数据</button>
-        <button class="ghost-btn" id="copyBtn">📋 复制结果</button>
+      <div class="row2" id="rowRefreshCopy">
+        <button class="ghost-btn" id="refreshBtn">🔄 更新数据<span class="btn-spin"></span></button>
+        <button class="ghost-btn" id="copyBtn">📋 复制结果<span class="btn-spin"></span></button>
       </div>
       <div>
         <label>回测期数（20–400）</label>
@@ -361,7 +367,7 @@
         </div>
       </div>
       <div class="row2">
-        <button class="ghost-btn" id="btBtn" style="flex:1">📊 用历史数据回测当前配置</button>
+        <button class="ghost-btn" id="btBtn" style="flex:1">📊 用历史数据回测当前配置<span class="btn-spin"></span></button>
       </div>
       <div class="status-row">
         <span class="spin" id="statusSpin" style="display:none"></span>
@@ -416,9 +422,10 @@
 </div>
 
 <div id="mobileBar" class="mobile-bar">
-  <button id="mGen" class="mbtn mbtn-primary">生成号码</button>
-  <button id="mBt" class="mbtn">📊 回测</button>
-  <button id="mCopy" class="mbtn">📋 复制</button>
+  <button id="mGen" class="mbtn mbtn-primary">🎯 生成<span class="btn-spin"></span></button>
+  <button id="mBt" class="mbtn">📊 回测<span class="btn-spin"></span></button>
+  <button id="mCopy" class="mbtn">📋 复制<span class="btn-spin"></span></button>
+  <button id="mRefresh" class="mbtn">🔄 更新<span class="btn-spin"></span></button>
 </div>
 
 <script>
@@ -429,7 +436,7 @@ const opts = { blueCover: false, shapeFilter: false };
 const LABELS = { random:'纯随机', hot:'追热', cold:'博冷', balanced:'冷热均衡', zone:'分区', spread:'分散' };
 
 /* ---------- 全局 loading / 防重复提交 ---------- */
-const apiButtons = ['#genBtn', '#btBtn', '#refreshBtn', '#copyBtn', '#mGen', '#mBt', '#mCopy'];
+const apiButtons = ['#genBtn', '#btBtn', '#refreshBtn', '#copyBtn', '#mGen', '#mBt', '#mCopy', '#mRefresh'];
 let apiBusy = false;
 function setBusy(busy, msg) {
   apiBusy = busy;
@@ -744,6 +751,7 @@ const mGen = $('#mGen'), mBt = $('#mBt'), mCopy = $('#mCopy');
 if (mGen)  mGen.onclick  = () => { const b = $('#genBtn');  if (b && !b.disabled) b.click(); };
 if (mBt)   mBt.onclick   = () => { const b = $('#btBtn');   if (b && !b.disabled) b.click(); };
 if (mCopy) mCopy.onclick = () => { const b = $('#copyBtn'); if (b && !b.disabled) b.click(); };
+if (mRefresh) mRefresh.onclick = () => { const b = $('#refreshBtn'); if (b && !b.disabled) b.click(); };
 
 loadTrend();
 </script>
