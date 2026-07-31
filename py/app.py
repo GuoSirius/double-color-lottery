@@ -1,0 +1,277 @@
+"""
+双色球选号 · 零依赖 Web 服务
+============================
+用 Python 标准库 http.server 提供本地 Web 界面，无需安装任何第三方包。
+
+启动：
+    python app.py            # 默认 http://localhost:8765
+    python app.py 9000      # 指定端口
+
+接口：
+    GET  /                 -> 前端单页 (index.html)
+    GET  /api/trend        -> 走势摘要（热号/冷号/区间/每号频率遗漏/形态统计）
+    POST /api/generate     -> 按 {strategy, count, dedupe, blueCover, shapeFilter} 生成号码
+    POST /api/backtest     -> 按 {strategy, count, periods, blueCover, shapeFilter} 回测
+    GET  /api/refresh      -> 重新抓取最新历史数据（含数据质量体检）
+"""
+
+from __future__ import annotations
+
+import csv
+import json
+import os
+import sys
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+from ssq import (  # noqa: E402
+    STRATEGIES,
+    STRATEGY_DESC,
+    TrendAnalyzer,
+    backtest,
+    generate_numbers,
+    load_history,
+    shape_of,
+)
+
+DATA = os.path.join(HERE, "data", "sample_history.csv")
+INDEX = os.path.join(HERE, "index.html")
+
+
+def _load():
+    return load_history(DATA)
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "SSQ-Web/1.0"
+
+    # ---------- 通用工具 ----------
+    def _send_json(self, obj, code: int = 200) -> None:
+        body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_index(self) -> None:
+        try:
+            with open(INDEX, encoding="utf-8") as f:
+                html = f.read()
+        except FileNotFoundError:
+            self._send_json({"error": "index.html 未找到"}, 500)
+            return
+        body = html.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):  # 静默日志
+        pass
+
+    # ---------- 路由 ----------
+    def do_GET(self):
+        path = urlparse(self.path).path
+        if path in ("/", "/index.html"):
+            self._serve_index()
+        elif path == "/api/trend":
+            self._send_json(self._trend())
+        elif path == "/api/refresh":
+            self._send_json(self._refresh())
+        else:
+            self._send_json({"error": "not found"}, 404)
+
+    def do_POST(self):
+        path = urlparse(self.path).path
+        if path not in ("/api/generate", "/api/backtest"):
+            self._send_json({"error": "not found"}, 404)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length) if length else b"{}"
+            data = json.loads(raw or b"{}")
+        except Exception:
+            data = {}
+        if path == "/api/generate":
+            self._send_json(self._generate(data))
+        else:
+            self._send_json(self._backtest(data))
+
+    # ---------- 业务逻辑 ----------
+    def _trend(self):
+        try:
+            draws = _load()
+            ta = TrendAnalyzer(draws)
+            rf, ro = ta.red_frequency(), ta.red_omission()
+            bf, bo = ta.blue_frequency(), ta.blue_omission()
+            tier = ta.red_tier()
+            hot = sorted(rf.items(), key=lambda kv: kv[1], reverse=True)[:10]
+            cold = sorted(ro.items(), key=lambda kv: kv[1], reverse=True)[:10]
+            red = {
+                r: {"freq": rf.get(r, 0), "omission": ro.get(r, ta.n), "tier": tier[r]}
+                for r in range(1, 34)
+            }
+            blue = {
+                b: {"freq": bf.get(b, 0), "omission": bo.get(b, ta.n)}
+                for b in range(1, 17)
+            }
+            st = ta.shape_stats()
+            bounds = ta.shape_bounds()
+            latest = draws[-1] if draws else None
+            return {
+                "ok": True,
+                "n": ta.n,
+                "latest": (
+                    {"issue": latest.issue, "date": latest.date,
+                     "reds": sorted(latest.reds), "blue": latest.blue}
+                    if latest else None
+                ),
+                "hot": [[k, v] for k, v in hot],
+                "cold": [[k, v] for k, v in cold],
+                "zones": ta.zone_distribution(),
+                "red": red,
+                "blue": blue,
+                "shape": st,
+                "bounds": {
+                    "sum": [bounds["sum_min"], bounds["sum_max"]],
+                    "span": [bounds["span_min"], bounds["span_max"]],
+                    "odd": sorted(bounds["odd_ok"]),      # type: ignore[arg-type]
+                    "big": sorted(bounds["big_ok"]),      # type: ignore[arg-type]
+                    "maxConsecutive": bounds["max_consecutive"],
+                    "minAc": bounds["min_ac"],
+                },
+                "strategies": [
+                    {"key": k, "desc": STRATEGY_DESC[k]} for k in STRATEGIES
+                ],
+            }
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def _generate(self, data):
+        strategy = str(data.get("strategy", "random"))
+        try:
+            count = max(1, min(int(data.get("count", 5)), 200))
+        except (TypeError, ValueError):
+            count = 5
+        dedupe = bool(data.get("dedupe", True))
+        blue_cover = bool(data.get("blueCover", False))
+        shape_filter = bool(data.get("shapeFilter", False))
+        try:
+            draws = generate_numbers(
+                DATA,
+                count=count,
+                strategy=strategy,
+                dedupe=dedupe,
+                blue_cover=blue_cover,
+                shape_filter=shape_filter,
+            )
+            covered = len(set(d.blue for d in draws))
+            return {
+                "ok": True,
+                "strategy": strategy,
+                "count": len(draws),
+                "cost": len(draws) * 2,
+                "blueCover": blue_cover,
+                "shapeFilter": shape_filter,
+                "blueCovered": covered,
+                # 蓝球覆盖数 / 16 = 本期至少中一注六等奖的确定概率
+                "guaranteeRate": round(min(covered, 16) / 16, 4),
+                "numbers": [
+                    {
+                        "reds": sorted(d.reds),
+                        "blue": d.blue,
+                        "shape": {
+                            k: (list(v) if isinstance(v, tuple) else v)
+                            for k, v in shape_of(d.reds).items()
+                        },
+                    }
+                    for d in draws
+                ],
+            }
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def _backtest(self, data):
+        strategy = str(data.get("strategy", "random"))
+        try:
+            count = max(1, min(int(data.get("count", 5)), 50))
+        except (TypeError, ValueError):
+            count = 5
+        try:
+            periods = max(20, min(int(data.get("periods", 150)), 400))
+        except (TypeError, ValueError):
+            periods = 150
+        try:
+            draws = _load()
+            r = backtest(
+                draws,
+                count=count,
+                strategy=strategy,
+                periods=periods,
+                blue_cover=bool(data.get("blueCover", False)),
+                shape_filter=bool(data.get("shapeFilter", False)),
+                min_train=min(200, max(50, len(draws) - periods)),
+            )
+            r["ok"] = True
+            return r
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+    def _refresh(self):
+        try:
+            import fetch_data
+
+            rows = fetch_data.fetch(500)
+            # ★ 必须先体检再落盘：历史上出现过「蓝球列错位」污染整个数据集，
+            #   一旦写入会静默毁掉全部走势分析与回测结论。
+            warns = fetch_data.sanity_check(rows)
+            if warns:
+                return {"ok": False, "error": "数据质量体检未通过：" + "；".join(warns)}
+            os.makedirs(os.path.dirname(DATA), exist_ok=True)
+            with open(DATA, "w", newline="", encoding="utf-8-sig") as f:
+                w = csv.DictWriter(f, fieldnames=["issue", "date", "red", "blue"])
+                w.writeheader()
+                w.writerows(rows)
+            return {
+                "ok": True,
+                "count": len(rows),
+                "latest": rows[0] if rows else None,
+                "checked": True,
+            }
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": str(e)}
+
+
+class _Server(ThreadingHTTPServer):
+    # Windows 下 SO_REUSEADDR 允许多个进程同时绑定同一端口，
+    # 会导致「改了代码却还是旧行为」的诡异现象（请求被残留的旧进程接管）。
+    # 这里显式关闭，端口被占用时直接报错，避免静默踩坑。
+    allow_reuse_address = False
+    daemon_threads = True
+
+
+def main() -> None:
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
+    try:
+        srv = _Server(("0.0.0.0", port), Handler)
+    except OSError as e:
+        print(f"✗ 端口 {port} 启动失败：{e}")
+        print(f"  可能已有服务在运行，请先关闭，或换端口： python app.py {port + 1}")
+        raise SystemExit(1)
+    print(f"双色球选号 Web 已启动： http://localhost:{port}")
+    print("按 Ctrl+C 停止。")
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        print("\n已停止。")
+
+
+if __name__ == "__main__":
+    main()

@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>双色球智能选号 · 走势分析</title>
+  <title>双色球智能选号 · 走势分析</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 <style>
   :root {
     --bg: #0b1020; --bg2: #0f1629; --panel: rgba(255,255,255,.045);
@@ -88,6 +90,7 @@
     flex: 1; text-align: center; font-size: 18px; font-weight: 700; padding: 8px;
     border-radius: 11px; border: 1px solid var(--border); background: var(--panel-strong); color: var(--text);
   }
+  .stepper input.invalid { border-color: #ff4d4f; box-shadow: 0 0 0 3px rgba(255,77,79,.18); }
   .opts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .chip {
     border: 1px solid var(--border); background: var(--panel-strong); color: var(--muted);
@@ -508,11 +511,21 @@ function renderGuarantee(d) {
 $('#btMinus').onclick = () => { const el = $('#btPeriods'); el.value = Math.max(20, (parseInt(el.value, 10) || 200) - 10); };
 $('#btPlus').onclick = () => { const el = $('#btPeriods'); el.value = Math.min(400, (parseInt(el.value, 10) || 200) + 10); };
 
+/* 实时校验回测期数：必须是 20–400 之间的正整数（拒绝小数/字母/负数/越界） */
+$('#btPeriods').addEventListener('input', () => {
+  const res = parsePositiveIntInRange($('#btPeriods').value, 20, 400, '回测期数');
+  $('#btPeriods').classList.toggle('invalid', !res.ok);
+});
+
 /* ---------- 回测 ---------- */
 $('#btBtn').onclick = async () => {
-  const btn = $('#btBtn'); btn.disabled = true; btn.textContent = '回测中…';
+  const btn = $('#btBtn');
+  const res = parsePositiveIntInRange($('#btPeriods').value, 20, 400, '回测期数');
+  if (!res.ok) { $('#status').textContent = res.error; $('#btPeriods').classList.add('invalid'); return; }
+  $('#btPeriods').classList.remove('invalid');
+  const btPeriods = res.value;
+  btn.disabled = true; btn.textContent = '回测中…';
   $('#status').textContent = '正在用真实历史逐期回测，请稍候…';
-  const btPeriods = Math.max(20, Math.min(400, parseInt($('#btPeriods').value, 10) || 200));
   try {
     const r = await fetch('/api/backtest', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -556,25 +569,63 @@ function renderBacktest(d) {
     </div>`;
 }
 
-/* ---------- 复制 ---------- */
-$('#copyBtn').onclick = () => {
+/* ---------- 输入校验：必须是正整数且在范围内 ---------- */
+function parsePositiveIntInRange(raw, min, max, name) {
+  const s = String(raw == null ? '' : raw).trim();
+  if (!/^\d+$/.test(s)) return { ok: false, error: `${name}必须是 ${min}–${max} 之间的正整数（不能含小数、符号或字母）` };
+  const v = parseInt(s, 10);
+  if (v < min || v > max) return { ok: false, error: `${name}需在 ${min}–${max} 之间` };
+  return { ok: true, value: v };
+}
+
+/* ---------- 复制（兼容非安全上下文：如 http://IP 访问） ---------- */
+async function copyText(text) {
+  // 优先用 Clipboard API（需 https 或 localhost 安全上下文）
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (_) { /* 落到降级方案 */ }
+  // 降级：临时 textarea + execCommand（在 http / 局域网 IP 等非安全上下文下仍可用）
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (_) { return false; }
+}
+$('#copyBtn').onclick = async () => {
   if (!lastNumbers.length) { $('#status').textContent = '还没有结果可复制'; return; }
-  const text = lastNumbers.map((it, i) => `${i+1}. ${it.reds.map(pad).join(' ')} + ${pad(it.blue)}`).join('\n');
-  navigator.clipboard.writeText(text).then(() => $('#status').textContent = '已复制到剪贴板 ✓').catch(() => $('#status').textContent = '复制失败');
+  const text = lastNumbers.map((it, i) => `${i + 1}. ${it.reds.map(pad).join(' ')} + ${pad(it.blue)}`).join('\n');
+  $('#status').textContent = '正在复制…';
+  const ok = await copyText(text);
+  $('#status').textContent = ok ? '已复制到剪贴板 ✓' : '复制失败，请手动框选文本复制';
 };
 
 /* ---------- 刷新历史期数步进 ---------- */
 $('#histMinus').onclick = () => { const el = $('#histCount'); el.value = Math.max(5, (parseInt(el.value, 10) || 5) - 1); };
 $('#histPlus').onclick = () => { const el = $('#histCount'); el.value = Math.min(99999, (parseInt(el.value, 10) || 500) + 1); };
 
+/* 实时校验历史期数：必须是 5–99999 之间的正整数 */
+$('#histCount').addEventListener('input', () => {
+  const res = parsePositiveIntInRange($('#histCount').value, 5, 99999, '历史期数');
+  $('#histCount').classList.toggle('invalid', !res.ok);
+});
+
 /* ---------- 更新数据 ---------- */
 $('#refreshBtn').onclick = async () => {
-  const raw = parseInt($('#histCount').value, 10);
-  if (isNaN(raw) || raw < 5 || raw > 99999) {
-    $('#status').textContent = '历史期数需在 5–99999 之间';
-    return;
-  }
-  const count = Math.min(99999, Math.max(5, raw));
+  const res = parsePositiveIntInRange($('#histCount').value, 5, 99999, '历史期数');
+  if (!res.ok) { $('#status').textContent = res.error; $('#histCount').classList.add('invalid'); return; }
+  $('#histCount').classList.remove('invalid');
+  const count = res.value;
   $('#status').textContent = `正在刷新最新 ${count} 期开奖数据…`;
   try {
     const r = await fetch('/api/refresh?count=' + count); const d = await r.json();
