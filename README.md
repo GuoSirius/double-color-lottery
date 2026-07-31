@@ -135,8 +135,30 @@ wrangler pages deploy . --project-name ssq-cloudflare
 `functions/` 下的 `*.js` 会被自动识别为 Pages Functions；`index.html` 与 `data/`
 作为静态资源托管。浏览器访问站点根路径即可使用全部功能。
 
-> 也可以直接在 Cloudflare Dashboard 连接 Git 仓库自动部署；
-> 在 Settings → Functions → KV namespace bindings 里绑定 `SSQ_DATA` 即可启用刷新持久化。
+### 4.（推荐）连接 GitHub 自动部署（push 即部署）
+
+上面的 `wrangler pages deploy` 是一次性手动发布；若希望「提交到 GitHub 后自动部署」，
+在 Cloudflare 控制台开启 Git 集成即可，**仓库无需新增任何文件**。
+
+1. Cloudflare Dashboard → Pages → 项目 `ssq-cloudflare` → **Settings → Build & deployments**。
+2. 点击 **Connect to Git** → 选择 GitHub → 授权 → 选择仓库 `GuoSirius/double-color-lottery`。
+3. 构建设置：
+   - **Production branch**：`main`
+   - **Build command**：留空（本项目无构建步骤，静态 `index.html` + `functions/` 直接部署）
+   - **Build output directory**：`/`（等价于 `wrangler.toml` 里的 `pages_build_output_dir = "."`，即仓库根目录）
+   - **Framework preset**：`None`
+   - **KV 绑定**：在 **Settings → Functions → KV namespace bindings** 确认已绑定 `SSQ_DATA`
+     （namespace id 见 `wrangler.toml` 的 `[[kv_namespaces]].id`）；不绑定也能运行，只是刷新结果不持久化。
+4. 保存后 Cloudflare 会立即从 GitHub 当前 `main` 拉取并部署一次；之后**每次
+   `git push origin main`，自动重新构建并上线**，`functions/` 自动作为 Pages Functions 发布。
+5. 验证：部署变绿后访问 `https://ssq-cloudflare-em8.pages.dev/api/refresh?count=500`，
+   预期返回 `{"ok": true, "count": 500, ...}`。
+
+> 开启 Git 集成后，GitHub 仓库成为唯一数据源。改代码请走
+> `git commit` → `git push`，不要再手动 `wrangler pages deploy`，否则会与 Git 集成冲突
+> （手动部署会被下次 push 覆盖）。
+
+---
 
 ## 与 Python 版的关系
 
