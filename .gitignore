@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 .wrangler/
+
+# Python 本地版运行时数据：本地刷新/调试会频繁变动，不纳入版本控制
+# （Cloudflare 部署版用的是根目录 data/，不在忽略范围内）
+py/data/
