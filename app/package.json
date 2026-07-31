@@ -6,7 +6,10 @@
   "description": "双色球选号分析 App（Capacitor 封装，安卓/iOS）",
   "scripts": {
     "sync": "node sync.mjs",
-    "cap": "cap"
+    "cap": "cap",
+    "cap:add:android": "cap add android && node scripts/patch-android-gradle.mjs",
+    "cap:add:ios": "cap add ios",
+    "patch:android": "node scripts/patch-android-gradle.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^6.1.2",

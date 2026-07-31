@@ -57,9 +57,14 @@ npm run sync
 
 ### 第 4 步：生成安卓工程（只做一次）
 ```bash
-npx cap add android
+npm run cap:add:android
 ```
 - 会生成 `app/android/` 文件夹（这是真正的安卓原生工程）。
+- 本条命令已包含自动补丁：把 Gradle 升级到 **8.5** 并使用**腾讯云镜像**，以兼容 JDK 21、避免国内下载 Gradle 被墙。
+- 如果你之前用 `npx cap add android` 生成过，单独打补丁：
+  ```bash
+  npm run patch:android
+  ```
 - 如果报错 `cap: command not found`，先确认第 2 步 `npm install` 成功了。
 
 ### 第 5 步：把页面同步到安卓工程
@@ -138,6 +143,7 @@ npx cap sync                        # 第三步：同步进原生工程
 | `npx cap` 提示找不到命令 | 确认在 `app/` 目录、且 `npm install` 已完成 |
 | Android Studio 一直「Building / Indexing」 | 首次下载 SDK/Gradle，正常现象，等它转完 |
 | **首次启动弹窗："Unable to access Android SDK add-on list"** | 这是去 Google 拉 SDK 列表被墙。点 **Cancel** 跳过，进 IDE 后通过 `SDK Manager → SDK Update Sites` 换成清华/中科大镜像（见下方「附」），再下载 SDK。 |
+| **弹窗 "Gradle 8.2.1 is incompatible with the Gradle JVM version 25"** | 你装了 JDK 21，但 Capacitor 6 默认 Gradle 8.2.1 不支持 JDK 21。运行 `npm run patch:android` 自动升级 Gradle 到 8.5 并换国内镜像；或另装 JDK 17（见下方「附」）。 |
 | 手机装不上 APK | 允许「未知来源」；或改用 Android Studio 直接 Run 到手机 |
 | App 打开后白屏 | 检查手机能否访问 `ssq-cloudflare-em8.pages.dev`（网站本身要能打开） |
 
@@ -185,7 +191,31 @@ echo src01=https\://mirrors.tuna.tsinghua.edu.cn/android/repository/
 - 轻微卡顿是正常，耐心等；若长时间（半小时以上）不动，可搜「Gradle 国内镜像」「Android SDK 国内镜像」配置后再重试。
 - 不想等？可改用公司/手机热点网络，有时比校园网/企业网更顺。
 
-### 5. 其它国际资源
+### 5. Gradle 8.2.1 与 JDK 21 不兼容
+如果你本机只装了 **JDK 21**，Android Studio 导入 `app/android` 时会弹窗：
+
+> The project's Gradle version Gradle 8.2.1 is incompatible with the Gradle JVM version 25.
+
+这是因为 Capacitor 6 默认模板使用 **Gradle 8.2.1**，而 Gradle 8.2.1 最高只支持 **JDK 19**，不支持 JDK 21。
+
+**解决办法 A（推荐，不用额外装 JDK）**：
+```bash
+npm run patch:android
+```
+脚本会自动把 `app/android/gradle/wrapper/gradle-wrapper.properties` 里的 Gradle 升级到 **8.5**（官方开始支持 JDK 21 的版本），并把下载地址切到 **腾讯云镜像** `https://mirrors.cloud.tencent.com/gradle/`。
+
+然后回到 Android Studio，点工具栏的 **Sync Project with Gradle Files**（大象图标），或重启 Android Studio，让它重新同步。
+
+**解决办法 B（装一个兼容的 JDK）**：
+- 安装 **JDK 17**（JDK 17 是 Android 开发最常用的 LTS 版本）。
+- 国内下载推荐 Eclipse Temurin 镜像：
+  - 清华：`https://mirrors.tuna.tsinghua.edu.cn/Adoptium/`
+  - 中科大：`https://mirrors.ustc.edu.cn/Adoptium/`
+- 安装后，在弹窗里点 **Open JVM settings** → 选择 JDK 17 的路径 → 重新同步。
+
+> 提示：Capacitor 6 的默认 Gradle 版本比较保守，后续如果官方升级默认模板到 Gradle 8.5+，这个问题会自动消失。
+
+### 6. 其它国际资源
 - 文档里若还有指向 `*.google.com`、`github.com` 的下载，遇到打不开就用对应国内镜像（如 `google.cn` 系列、`npmmirror`、`gitclone.com` 等）替代。
 
 > 提示：以上只是**下载/联网**层面的问题。代码、命令本身都没问题，网络通了照着做就能跑通。
