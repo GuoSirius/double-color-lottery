@@ -287,6 +287,7 @@ class Handler(BaseHTTPRequestHandler):
                 w.writerows(rows)
             return {
                 "ok": True,
+                "requested": count,
                 "count": len(rows),
                 "latest": rows[0] if rows else None,
                 "checked": True,
