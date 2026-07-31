@@ -148,6 +148,7 @@ npx cap sync                        # 第三步：同步进原生工程
 | **首次启动弹窗："Unable to access Android SDK add-on list"** | 这是去 Google 拉 SDK 列表被墙。点 **Cancel** 跳过，进 IDE 后通过 `SDK Manager → SDK Update Sites` 换成清华/中科大镜像（见下方「附」），再下载 SDK。 |
 | **弹窗 "Gradle 8.2.1 is incompatible with the Gradle JVM version 25"** | 你装了 JDK 21，但 Capacitor 6 默认 Gradle 8.2.1 不支持 JDK 21。运行 `npm run patch:android` 自动升级 **Gradle + AGP** 并换国内镜像；或另装 JDK 17（见下方「附 5」）。 |
 | **报错 "This project requires a newer version of Android Studio"** | AGP 版本高于你的 IDE。要么升级 Android Studio，要么按「附 5」的对照表指定较低的 AGP：`AGP_VERSION=8.7.3 npm run patch:android`。 |
+| **明明装了 Android Studio，patch 却说「未探测到」** | 脚本有 4 级兜底（`STUDIO_PATH` → 注册表 → 多盘符目录 → 用户配置目录），正常都能找到，且会打印来源如「（来源：注册表）」。若仍落空（绿色免安装版且从未启动过），手动指定：`STUDIO_PATH="你的安装目录" npm run patch:android`，或直接 `AGP_VERSION=8.13.2 npm run patch:android`。详见「附 5」。 |
 | 同步时报 `Could not resolve com.android.tools.build:gradle` | 拉 AGP 被墙。`npm run patch:android` 会自动注入阿里云镜像；已经跑过还失败就换手机热点重试。 |
 | **警告 `Using flatDir should be avoided...`** | **无害警告，可直接忽略**，不影响打包。这是 Capacitor 官方模板自带的（用于加载 Cordova 插件的本地 aar/jar），本项目没装 Cordova 插件所以那个目录是空的。详见下方「附 7」。 |
 | 构建日志里一堆黄色 `warning:` / `Deprecated` | 只要最后显示 **BUILD SUCCESSFUL** 就是成功了。Gradle 的警告 ≠ 错误，真正的失败会明确写 **BUILD FAILED** 并给出 `* What went wrong:` 段落。 |
@@ -236,17 +237,32 @@ Gradle 由 wrapper 自动下载，不挑 IDE；但 **AGP 版本会反过来要�
 | 2024.3.1 Meerkat | 8.9.3 |
 | 2024.3.2 Meerkat FD | 8.10.1 |
 | 2025.1.1 Narwhal | 8.11.1 |
-| 2025.1.3 Narwhal 3 FD | 8.13.0 |
+| 2025.1.3 Narwhal 3 FD 及以上 | 8.13.2（AGP 8 系列封顶） |
 | **探测不到** | **8.7.3**（保守默认，Ladybug 及以上都能用） |
 
-探测路径为标准安装位置（Windows `C:\Program Files\Android\Android Studio`、macOS `/Applications/Android Studio.app` 等）。如果你装在自定义目录导致探测不到，有两种办法：
+> **为什么不上 AGP 9.x？** AGP 9 已发布（9.3.x），但它要求 **Gradle 9**，且有大量破坏性变更（`buildConfig` 默认关闭、Transform API 移除等），Capacitor 6 的模板与 Cordova 兼容层都还没适配。所以脚本封顶在 AGP 8 系列最新稳定版 **8.13.2**——对新版 IDE 完全兼容，只是不会用到 AGP 9 的新特性。
+
+**脚本按这个优先级探测 Android Studio（4 级兜底）：**
+
+1. `STUDIO_PATH` 环境变量（你手动指定的）
+2. **Windows 注册表** `HKLM\SOFTWARE\Android Studio` → `Path` —— 最权威，装在哪个盘都能找到
+3. 常见安装目录 —— Windows 逐盘扫 `C:/D:/E:/F:` 的 `Program Files/Android/Android Studio` 等，另含 JetBrains Toolbox；macOS/Linux 同理
+4. **用户配置目录反推** —— `%APPDATA%\Google\AndroidStudio<版本>`（macOS/Linux 对应 `~/Library/Application Support/Google`、`~/.config/Google`）。只要 Android Studio **被启动过一次**就会生成，即便装在非常规位置也能兜住
+
+运行时会打印来源，方便排查：
+
+```
+ℹ️  探测到 Android Studio 2026.1.3（来源：注册表）
+```
+
+万一 4 级全部落空（例如绿色免安装版且从未启动过），手动指定：
 
 ```bash
 # 办法一：告诉脚本 Android Studio 装在哪
 STUDIO_PATH="D:/MyTools/Android Studio" npm run patch:android
 
 # 办法二：直接指定 AGP 版本（照上表选一个不超过你 IDE 版本的）
-AGP_VERSION=8.13.0 npm run patch:android
+AGP_VERSION=8.13.2 npm run patch:android
 ```
 
 其它可用的环境变量：
