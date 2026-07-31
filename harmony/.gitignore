@@ -1,0 +1,7 @@
+node_modules/
+oh_modules/
+build/
+*.hap
+*.hsp
+*.app
+.DS_Store
