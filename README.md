@@ -78,7 +78,7 @@ curl -X POST https://你的域名/api/generate \
 {
   "strategy": "balanced",
   "count": 5,               // 每期注数 1–50
-  "periods": 200,           // 回测期数 20–400（前端「回测期数」输入框），越大样本越足
+  "periods": 200,           // 回测期数 5–1000（前端「回测期数」输入框），越大样本越足
   "blueCover": false,
   "shapeFilter": false
 }

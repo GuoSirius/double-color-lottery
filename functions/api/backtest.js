@@ -17,7 +17,7 @@ export async function onRequestPost(context) {
 
     const strategy = String(data.strategy || "random");
 
-    // 严格校验：注数 1–50、期数 20–400，均须为正整数（拒绝小数/字母/负数/越界）。
+    // 严格校验：注数 1–50、期数 5–1000，均须为正整数（拒绝小数/字母/负数/越界）。
     // 与 py/app.py._backtest 行为保持一致：非法输入直接返回 400，而不是静默夹紧。
     const isPosInt = (v) =>
       typeof v === "number"
@@ -32,8 +32,8 @@ export async function onRequestPost(context) {
     }
     const count = toInt(data.count ?? 5);
 
-    if (!isPosInt(data.periods ?? 150) || toInt(data.periods ?? 150) < 20 || toInt(data.periods ?? 150) > 400) {
-      return json({ ok: false, error: "回测期数需为 20–400 之间的正整数" }, 400);
+    if (!isPosInt(data.periods ?? 150) || toInt(data.periods ?? 150) < 5 || toInt(data.periods ?? 150) > 1000) {
+      return json({ ok: false, error: "回测期数需为 5–1000 之间的正整数" }, 400);
     }
     const periods = toInt(data.periods ?? 150);
 

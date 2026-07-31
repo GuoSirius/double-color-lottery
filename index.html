@@ -361,10 +361,10 @@
         <button class="ghost-btn" id="copyBtn">📋 复制结果<span class="btn-spin"></span></button>
       </div>
       <div>
-        <label>回测期数（20–400）</label>
+        <label>回测期数（5–1000）</label>
         <div class="stepper">
           <button id="btMinus">−</button>
-          <input id="btPeriods" type="number" min="20" max="400" step="10" value="200" />
+          <input id="btPeriods" type="number" min="5" max="1000" step="10" value="200" />
           <button id="btPlus">＋</button>
         </div>
       </div>
@@ -619,19 +619,19 @@ function renderGuarantee(d) {
 }
 
 /* ---------- 回测期数步进 ---------- */
-$('#btMinus').onclick = () => { const el = $('#btPeriods'); el.value = Math.max(20, (parseInt(el.value, 10) || 200) - 10); };
-$('#btPlus').onclick = () => { const el = $('#btPeriods'); el.value = Math.min(400, (parseInt(el.value, 10) || 200) + 10); };
+$('#btMinus').onclick = () => { const el = $('#btPeriods'); el.value = Math.max(5, (parseInt(el.value, 10) || 200) - 10); };
+$('#btPlus').onclick = () => { const el = $('#btPeriods'); el.value = Math.min(1000, (parseInt(el.value, 10) || 200) + 10); };
 
-/* 实时校验回测期数：必须是 20–400 之间的正整数（拒绝小数/字母/负数/越界） */
+/* 实时校验回测期数：必须是 5–1000 之间的正整数（拒绝小数/字母/负数/越界） */
 $('#btPeriods').addEventListener('input', () => {
-  const res = parsePositiveIntInRange($('#btPeriods').value, 20, 400, '回测期数');
+  const res = parsePositiveIntInRange($('#btPeriods').value, 5, 1000, '回测期数');
   $('#btPeriods').classList.toggle('invalid', !res.ok);
 });
 
 /* ---------- 回测 ---------- */
 $('#btBtn').onclick = async () => {
   if (apiBusy) return;
-  const res = parsePositiveIntInRange($('#btPeriods').value, 20, 400, '回测期数');
+  const res = parsePositiveIntInRange($('#btPeriods').value, 5, 1000, '回测期数');
   if (!res.ok) { $('#status').textContent = res.error; $('#btPeriods').classList.add('invalid'); return; }
   $('#btPeriods').classList.remove('invalid');
   const btPeriods = res.value;

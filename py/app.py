@@ -263,8 +263,8 @@ class Handler(BaseHTTPRequestHandler):
         if not _is_pos_int(data.get("count", 5)) or not (1 <= int(data.get("count", 5)) <= 50):
             return {"ok": False, "error": "回测注数需为 1–50 之间的正整数"}
         count = int(data.get("count", 5))
-        if not _is_pos_int(data.get("periods", 150)) or not (20 <= int(data.get("periods", 150)) <= 400):
-            return {"ok": False, "error": "回测期数需为 20–400 之间的正整数"}
+        if not _is_pos_int(data.get("periods", 150)) or not (5 <= int(data.get("periods", 150)) <= 1000):
+            return {"ok": False, "error": "回测期数需为 5–1000 之间的正整数"}
         periods = int(data.get("periods", 150))
         try:
             draws = _load()

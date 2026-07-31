@@ -6,15 +6,15 @@
 
 - **前端 `index.html`**
   - 新增 `parsePositiveIntInRange(raw, min, max, name)` helper，正则 `^\d+$` 校验正整数。
-  - `histCount`（历史期数 5–99999）与 `btPeriods`（回测期数 20–400）增加实时 `input` 校验（标红）与提交拦截，拒绝小数/字母/负数/越界。
+  - `histCount`（历史期数 5–99999）与 `btPeriods`（回测期数 5–1000）增加实时 `input` 校验（标红）与提交拦截，拒绝小数/字母/负数/越界。
   - `.stepper input.invalid` 增加红色边框与阴影提示。
 - **后端 Python `py/app.py`**
   - 新增 `_is_pos_int()`：拒绝 bool、小数、负数、0、非数字字符串。
-  - `_generate` 校验 count 1–200；`_backtest` 校验 count 1–50、periods 20–400；`_refresh` 读取 `?count=` 并校验 5–99999（修复此前硬编码 500 的 bug）。
+  - `_generate` 校验 count 1–200；`_backtest` 校验 count 1–50、periods 5–1000；`_refresh` 读取 `?count=` 并校验 5–99999（修复此前硬编码 500 的 bug）。
   - 非法输入返回 `{"ok": false, "error": "..."}`，不再静默夹紧。
 - **后端 Node `functions/api/`**
   - `fetch_data.js` 的 `validateLimit()` 改用 `/^\d+$/` 严格校验，拒绝 `"12abc"`、`"3.5"`、`0`、负数。
-  - `backtest.js` 对 `count` 1–50、`periods` 20–400 严格校验，非法返回 HTTP 400。
+  - `backtest.js` 对 `count` 1–50、`periods` 5–1000 严格校验，非法返回 HTTP 400。
 
 ## 2. 原创 favicon（无侵权风险）
 

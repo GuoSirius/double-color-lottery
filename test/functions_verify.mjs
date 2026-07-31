@@ -83,9 +83,13 @@ console.log("\n[3] /api/backtest");
   ok("periods 参数生效(small<=60)", small.periods_tested <= 60, `got ${small.periods_tested}`);
   ok("periods 参数生效(big<=150)", big.periods_tested <= 150, `got ${big.periods_tested}`);
   ok("不同 periods 产生不同样本量", big.periods_tested > small.periods_tested, `${small.periods_tested} vs ${big.periods_tested}`);
-  // 越界 periods 应被夹紧到 [20,400]
+  // 范围已放宽到 5–1000：上限 1000 应被接受，越界应被拒绝（返回 ok:false，而非夹紧）
+  const upper = await resJson(await backtestFn(ctx({ strategy:"random", count:5, periods:1000 })));
+  ok("periods=1000 被接受", upper.ok === true, JSON.stringify(upper).slice(0,120));
   const capped = await resJson(await backtestFn(ctx({ strategy:"random", count:5, periods:99999 })));
-  ok("periods 越界被夹紧到 400 以内", capped.periods_tested <= 400, `got ${capped.periods_tested}`);
+  ok("periods 越界被拒绝(ok:false)", capped.ok === false, JSON.stringify(capped).slice(0,120));
+  const tooLow = await resJson(await backtestFn(ctx({ strategy:"random", count:5, periods:4 })));
+  ok("periods<5 被拒绝(ok:false)", tooLow.ok === false, JSON.stringify(tooLow).slice(0,120));
 }
 
 console.log("\n[4] /api/trend");
