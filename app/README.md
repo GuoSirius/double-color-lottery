@@ -62,7 +62,7 @@ npm run cap:add:android
 - 会生成 `app/android/` 文件夹（这是真正的安卓原生工程）。
 - 本条命令已包含**自动补丁**，帮你做三件事（详见「六（附）· 5」）：
   1. **Gradle** 升级到 8.x 最新稳定版（兼容 JDK 21），下载源切腾讯云镜像；
-  2. **AGP**（安卓 Gradle 插件）从模板默认的 8.2.1 升级到与你本机 Android Studio 匹配的版本；
+  2. **AGP**（安卓 Gradle 插件）从模板默认版本升级到与你本机 Android Studio 匹配的版本；
   3. **Maven 仓库**注入阿里云镜像，避免国内拉不到 AGP 卡死。
 - 如果你之前用 `npx cap add android` 生成过，单独打补丁：
   ```bash
@@ -146,7 +146,7 @@ npx cap sync                        # 第三步：同步进原生工程
 | `npx cap` 提示找不到命令 | 确认在 `app/` 目录、且 `npm install` 已完成 |
 | Android Studio 一直「Building / Indexing」 | 首次下载 SDK/Gradle，正常现象，等它转完 |
 | **首次启动弹窗："Unable to access Android SDK add-on list"** | 这是去 Google 拉 SDK 列表被墙。点 **Cancel** 跳过，进 IDE 后通过 `SDK Manager → SDK Update Sites` 换成清华/中科大镜像（见下方「附」），再下载 SDK。 |
-| **弹窗 "Gradle 8.2.1 is incompatible with the Gradle JVM version 25"** | 你装了 JDK 21，但 Capacitor 6 默认 Gradle 8.2.1 不支持 JDK 21。运行 `npm run patch:android` 自动升级 **Gradle + AGP** 并换国内镜像；或另装 JDK 17（见下方「附 5」）。 |
+| **弹窗 "Gradle 8.2.1 is incompatible with the Gradle JVM version 25"** | 本机 JDK 21 与工程里的 Gradle/AGP 组合可能不匹配。运行 `npm run patch:android` 自动升级 **Gradle + AGP** 并换国内镜像；或另装 JDK 17（见下方「附 5」）。 |
 | **报错 "This project requires a newer version of Android Studio"** | AGP 版本高于你的 IDE。要么升级 Android Studio，要么按「附 5」的对照表指定较低的 AGP：`AGP_VERSION=8.7.3 npm run patch:android`。 |
 | **明明装了 Android Studio，patch 却说「未探测到」** | 脚本有 4 级兜底（`STUDIO_PATH` → 注册表 → 多盘符目录 → 用户配置目录），正常都能找到，且会打印来源如「（来源：注册表）」。若仍落空（绿色免安装版且从未启动过），手动指定：`STUDIO_PATH="你的安装目录" npm run patch:android`，或直接 `AGP_VERSION=8.13.2 npm run patch:android`。详见「附 5」。 |
 | 同步时报 `Could not resolve com.android.tools.build:gradle` | 拉 AGP 被墙。`npm run patch:android` 会自动注入阿里云镜像；已经跑过还失败就换手机热点重试。 |
@@ -199,13 +199,15 @@ echo src01=https\://mirrors.tuna.tsinghua.edu.cn/android/repository/
 - 轻微卡顿是正常，耐心等；若长时间（半小时以上）不动，可搜「Gradle 国内镜像」「Android SDK 国内镜像」配置后再重试。
 - 不想等？可改用公司/手机热点网络，有时比校园网/企业网更顺。
 
-### 5. Gradle / AGP 版本与 JDK 21 不兼容（`npm run patch:android` 一键搞定）
+### 5. Gradle / AGP 与 Android Studio / JDK 21（`npm run patch:android` 一键搞定）
 
-Capacitor 6 生成的安卓工程用的是 **Gradle 8.2.1 + AGP 8.2.1**，这套组合在 2026 年已经偏旧，典型症状是导入工程时弹窗：
+Capacitor 8 生成的安卓工程默认就是 **Gradle 8.x + AGP 8.13.x**，已原生支持 JDK 21，通常导入即可编译。若遇到下列任一情况，再跑补丁脚本：
 
-> The project's Gradle version Gradle 8.2.1 is incompatible with the Gradle JVM version 25.
+- 本机 Android Studio 版本较老，AGP 被探测后选得偏低，IDE 报 *"This project requires a newer version of Android Studio"*；
+- 国内网络拉不到 AGP / Gradle（仓库超时）；
+- 想显式锁定 Gradle / AGP 版本（如 `GRADLE_VERSION=8.14.5`、`AGP_VERSION=8.13.2`）。
 
-原因：Gradle 8.2.1 最高只支持 **JDK 19**，而现在新机器普遍装 JDK 21。
+> 早期 Capacitor 6 曾因默认 Gradle 8.2.1 不支持 JDK 21 而弹窗：*The project's Gradle version ... is incompatible with the Gradle JVM version 25*。升级到 Capacitor 8 后该问题已不存在，但补丁脚本仍保留 Gradle / AGP 升级与国内镜像注入能力，导入老机器或国内网络时照样好用。
 
 **解决办法 A（推荐，不用额外装 JDK）**：
 ```bash
@@ -240,7 +242,7 @@ Gradle 由 wrapper 自动下载，不挑 IDE；但 **AGP 版本会反过来要�
 | 2025.1.3 Narwhal 3 FD 及以上 | 8.13.2（AGP 8 系列封顶） |
 | **探测不到** | **8.7.3**（保守默认，Ladybug 及以上都能用） |
 
-> **为什么不上 AGP 9.x？** AGP 9 已发布（9.3.x），但它要求 **Gradle 9**，且有大量破坏性变更（`buildConfig` 默认关闭、Transform API 移除等），Capacitor 6 的模板与 Cordova 兼容层都还没适配。所以脚本封顶在 AGP 8 系列最新稳定版 **8.13.2**——对新版 IDE 完全兼容，只是不会用到 AGP 9 的新特性。
+> **为什么不上 AGP 9.x？** AGP 9 已发布（9.3.x），但它要求 **Gradle 9**，且有大量破坏性变更（`buildConfig` 默认关闭、Transform API 移除等），Capacitor 8 的模板与 Cordova 兼容层都还没适配。所以脚本封顶在 AGP 8 系列最新稳定版 **8.13.2**——对新版 IDE 完全兼容，只是不会用到 AGP 9 的新特性。
 
 **脚本按这个优先级探测 Android Studio（4 级兜底）：**
 
@@ -327,16 +329,16 @@ repositories {
 
 ### 上架前要注意 targetSdk
 
-本工程沿用 Capacitor 6 默认的 `compileSdk / targetSdk = 34`（见 `app/android/variables.gradle`），**本地安装、自用完全没问题**。但各大商店对 `targetSdk` 有硬性下限（Google Play 已要求 ≥ 35，国内渠道通常跟进稍慢），上架前需要手动调高：
+本工程用 **Capacitor 8**，其安卓模板默认 `compileSdk / targetSdk = 36`（对应 Android 16，见 `app/android/variables.gradle`），**已满足 Google Play 自 2026 年起要求 `targetSdk ≥ 36` 的规定**，本地安装、自用与上架一般都不需要再手动调高。若未来某商店要求更高版本，再手动调大即可：
 
 ```gradle
-// app/android/variables.gradle
-compileSdkVersion = 35
-targetSdkVersion = 35
+// app/android/variables.gradle（Capacitor 8 默认已是 36，此处仅作示例）
+compileSdkVersion = 36
+targetSdkVersion = 36
 ```
 
 改完在 Android Studio 的 **SDK Manager** 里把对应的 Android SDK Platform 装上，再重新同步。
 
-> ⚠️ 为什么补丁脚本不帮你自动改：`targetSdk` 升到 35 会**强制启用 edge-to-edge（内容延伸到状态栏/导航栏下方）**，WebView 页面可能被状态栏遮住一截。这属于需要真机验证的 UI 变更，所以留给你在准备上架时主动做、顺便测一遍显示效果，而不是在打包脚本里悄悄改掉。
+> 💡 关于 edge-to-edge：Capacitor 7 起已**移除** `adjustMarginsForEdgeToEdge` 的 margin hack，改用 System Bars 安全区方案 + CSS `env(safe-area-inset-*)` 处理边到边。因此升级到 8 后不会再出现「状态栏遮住 WebView 顶栏」的老问题；如想精细控制顶部/底部留白，在 `index.html` 用安全区变量微调即可，无需回退 `targetSdk`。
 
 > 本工程只负责「把网站变成可安装的 App 外壳」。商店账号、签名证书、上架审核需你自己在对应平台办理，我这边无法代注册。

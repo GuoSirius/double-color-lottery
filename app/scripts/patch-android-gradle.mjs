@@ -3,7 +3,7 @@
  *
  * 做三件事：
  *   1. Gradle wrapper  → 升级到 8.x 最新稳定版（自 8.4 起支持 JDK 21），下载源切腾讯云镜像。
- *   2. AGP             → 从 Capacitor 6 默认的 8.2.1 升级到与 Gradle / Android Studio 都兼容的版本。
+ *   2. AGP             → 从 Capacitor 8 模板默认版本升级到与 Gradle / Android Studio 都兼容的版本。
  *   3. Maven 仓库      → 注入阿里云镜像（保留 google()/mavenCentral() 兜底），避免国内拉不到 AGP。
  *
  * 为什么 AGP 不像 Gradle 那样直接顶到最新：
@@ -13,7 +13,8 @@
  *
  * 为什么不上 AGP 9.x：
  *   AGP 9 要求 Gradle 9，且有大量破坏性变更（buildConfig 默认关闭、Transform API 移除等），
- *   Capacitor 6 生成的模板与其 Cordova 兼容层均未适配。故本脚本封顶在 AGP 8 系列最新稳定版。
+ *   Capacitor 8 生成的模板与其 Cordova 兼容层均未适配。故本脚本封顶在 AGP 8 系列最新稳定版（8.13.2），
+ *   该版本满足 Capacitor 8 对 AGP ≥ 8.13.0 的要求。
  *
  * 用法：
  *   node scripts/patch-android-gradle.mjs              # 全自动

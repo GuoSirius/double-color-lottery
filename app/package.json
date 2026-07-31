@@ -12,12 +12,12 @@
     "patch:android": "node scripts/patch-android-gradle.mjs"
   },
   "dependencies": {
-    "@capacitor/core": "^6.1.2",
-    "@capacitor/android": "^6.1.2",
-    "@capacitor/ios": "^6.1.2"
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/ios": "^8.4.2"
   },
   "devDependencies": {
-    "@capacitor/cli": "^6.1.2",
+    "@capacitor/cli": "^8.4.2",
     "typescript": "^5.5.4"
   }
 }
