@@ -1,0 +1,7 @@
+{
+  "name": "ssq-cloudflare",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "双色球智能选号 · Cloudflare Pages + Pages Functions 部署版（方案 A）"
+}
