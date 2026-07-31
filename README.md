@@ -37,6 +37,70 @@ ssq_tool/
 > 数学提醒：每期开奖独立均匀随机，本工具「走势/加权」仅为娱乐参考，不提高中奖概率；
 > 蓝球买满 16 注（blueCover=true）是唯一数学上确定保底六等奖的手段。
 
+## 接口详细说明（4 个，py 与 node 版完全一致）
+
+> 所有接口返回 JSON；Web 前端在 `index.html` 中已封装好调用，直接用界面即可，
+> 下面的 `curl` 示例便于调试或对接其它前端。
+
+### 1) GET /api/trend —— 走势摘要
+**作用**：基于当前历史数据，计算热号/冷号、每号频率与遗漏、区间分布、形态统计与典型区间边界，供界面展示与选号参考。
+**参数**：无。
+**响应字段**：`ok`、`n`（期数）、`latest`（最新一期）、`hot`/`cold`（Top10 冷热号）、`zones`（三区占比）、`red`/`blue`（每号 freq/omission/tier）、`shape`（形态统计）、`bounds`（典型形态区间）、`strategies`（6 种策略说明）。
+**示例**：
+```bash
+curl https://你的域名/api/trend
+```
+
+### 2) POST /api/generate —— 按策略生成号码
+**作用**：按选定策略生成若干注号码，可选去重、蓝球全覆盖（保底六等奖）、形态过滤。
+**请求体**：
+```json
+{
+  "strategy": "hot",        // random | hot | cold | balanced | zone | spread
+  "count": 5,               // 注数 1–200
+  "dedupe": true,           // 整注去重（默认 true）
+  "blueCover": false,       // 蓝球轮询覆盖：买满 16 注=每期必中六等奖
+  "shapeFilter": false      // 仅保留符合历史典型形态的组合
+}
+```
+**响应字段**：`strategy`、`count`、`cost`（元=注数×2）、`blueCover`、`shapeFilter`、`blueCovered`（覆盖蓝球数）、`guaranteeRate`（=min(blueCovered,16)/16，保底六等奖确定概率）、`numbers[]`（`reds`/`blue`/`shape`）。
+**示例**：
+```bash
+curl -X POST https://你的域名/api/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"strategy":"spread","count":16,"blueCover":true,"shapeFilter":true}'
+```
+
+### 3) POST /api/backtest —— 滚动回测
+**作用**：用「只用历史前 N-1 期预测第 N 期」的走查式回测，验证各策略在真实历史上的期命中率/注命中率/奖级分布/ROI。**支持指定 `periods`（回测期数）**，方便对比不同期数下的胜率。
+**请求体**：
+```json
+{
+  "strategy": "balanced",
+  "count": 5,               // 每期注数 1–50
+  "periods": 200,           // 回测期数 20–400（前端「回测期数」输入框），越大样本越足
+  "blueCover": false,
+  "shapeFilter": false
+}
+```
+**响应字段**：`strategy`、`count_per_period`、`periods_tested`、`periods_hit`/`period_hit_rate`（期命中率）、`tickets_total`/`tickets_hit`/`ticket_hit_rate`、`levels`（各奖级分布）、`total_cost`/`total_prize`/`roi`。
+**示例**：
+```bash
+curl -X POST https://你的域名/api/backtest \
+  -H 'Content-Type: application/json' \
+  -d '{"strategy":"balanced","count":16,"periods":300,"blueCover":true}'
+```
+
+### 4) GET /api/refresh —— 重新抓取历史（实时刷新）
+**作用**：服务端抓取 500 彩票网最新开奖，先做数据质量体检（防「蓝球列错位」污染），通过后才落盘。写入 KV（若已绑定 `SSQ_DATA`）供后续接口使用。
+**参数**：`?count=N`（历史期数，**5–99999**，默认 500）。
+**响应字段**：`ok`、`requested`（请求期数）、`count`（实际写入期数）、`latest`（最新一期）、`checked`、`persisted`（是否已写入 KV）。
+**示例**：
+```bash
+curl "https://你的域名/api/refresh?count=800"
+```
+> 注：500 彩票网接口实际可返回历史上限约数千期，请求超过可用量时返回全部可用数据。
+
 ### 手动设定抓取的历史期数
 
 - **Web**：刷新按钮上方有「刷新历史期数」输入框（步进按钮），取值范围 **5–99999**，刷新时通过 `GET /api/refresh?count=N` 传给后端。
@@ -47,7 +111,7 @@ ssq_tool/
 ## 本地验证（无需部署）
 
 ```bash
-node test/functions_verify.mjs   # 32 项断言：引擎不变式 + 四个接口 + 抓取体检防御
+node test/functions_verify.mjs   # 39 项断言：引擎不变式 + 四个接口 + 抓取体检防御 + 历史期数/回测期数校验
 ```
 
 ## 部署到 Cloudflare Pages（方案 A）
