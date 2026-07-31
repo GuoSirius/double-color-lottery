@@ -20,9 +20,10 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -38,8 +39,22 @@ from ssq import (  # noqa: E402
     shape_of,
 )
 
+# 项目根目录（py/ 的上一级）：前后端共用同一份 index.html 与 favicon 资源，
+# 避免 py 与 Cloudflare 版各维护一份、长期漂移。
+ROOT = os.path.dirname(HERE)
 DATA = os.path.join(HERE, "data", "sample_history.csv")
-INDEX = os.path.join(HERE, "index.html")
+INDEX = os.path.join(ROOT, "index.html")
+
+
+def _is_pos_int(v) -> bool:
+    """判断值是否为正整数（兼容 int / 数字字符串），拒绝小数、负数、0、空与非数字。"""
+    if isinstance(v, bool):
+        return False
+    if isinstance(v, int):
+        return v > 0
+    if isinstance(v, str):
+        return v.isdigit() and int(v) > 0
+    return False
 
 
 def _load():
@@ -73,6 +88,29 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _serve_static(self, name: str) -> None:
+        # 仅放行白名单静态资源（favicon），杜绝目录穿越
+        allowed = {
+            "favicon.ico": "image/x-icon",
+            "favicon.svg": "image/svg+xml",
+        }
+        if name not in allowed:
+            self._send_json({"error": "not found"}, 404)
+            return
+        path = os.path.join(ROOT, name)
+        try:
+            with open(path, "rb") as f:
+                body = f.read()
+        except FileNotFoundError:
+            self._send_json({"error": name + " 未找到"}, 500)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", allowed[name])
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "public, max-age=86400")
+        self.end_headers()
+        self.wfile.write(body)
+
     def log_message(self, *args):  # 静默日志
         pass
 
@@ -81,6 +119,8 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in ("/", "/index.html"):
             self._serve_index()
+        elif path in ("/favicon.ico", "/favicon.svg"):
+            self._serve_static(path[1:])
         elif path == "/api/trend":
             self._send_json(self._trend())
         elif path == "/api/refresh":
@@ -156,10 +196,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _generate(self, data):
         strategy = str(data.get("strategy", "random"))
-        try:
-            count = max(1, min(int(data.get("count", 5)), 200))
-        except (TypeError, ValueError):
-            count = 5
+        if not _is_pos_int(data.get("count", 5)) or not (1 <= int(data.get("count", 5)) <= 200):
+            return {"ok": False, "error": "生成注数需为 1–200 之间的正整数"}
+        count = int(data.get("count", 5))
         dedupe = bool(data.get("dedupe", True))
         blue_cover = bool(data.get("blueCover", False))
         shape_filter = bool(data.get("shapeFilter", False))
@@ -200,14 +239,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def _backtest(self, data):
         strategy = str(data.get("strategy", "random"))
-        try:
-            count = max(1, min(int(data.get("count", 5)), 50))
-        except (TypeError, ValueError):
-            count = 5
-        try:
-            periods = max(20, min(int(data.get("periods", 150)), 400))
-        except (TypeError, ValueError):
-            periods = 150
+        if not _is_pos_int(data.get("count", 5)) or not (1 <= int(data.get("count", 5)) <= 50):
+            return {"ok": False, "error": "回测注数需为 1–50 之间的正整数"}
+        count = int(data.get("count", 5))
+        if not _is_pos_int(data.get("periods", 150)) or not (20 <= int(data.get("periods", 150)) <= 400):
+            return {"ok": False, "error": "回测期数需为 20–400 之间的正整数"}
+        periods = int(data.get("periods", 150))
         try:
             draws = _load()
             r = backtest(
@@ -228,7 +265,16 @@ class Handler(BaseHTTPRequestHandler):
         try:
             import fetch_data
 
-            rows = fetch_data.fetch(500)
+            # 历史期数：从 URL ?count= 读取，前后端统一约束 5–99999 的正整数
+            qs = parse_qs(urlparse(self.path).query)
+            count_raw = qs.get("count", ["500"])[0]
+            if not re.fullmatch(r"\d+", count_raw):
+                return {"ok": False, "error": "历史期数需为 5–99999 之间的正整数"}
+            count = int(count_raw)
+            if count < 5 or count > 99999:
+                return {"ok": False, "error": "历史期数需在 5–99999 期之间"}
+
+            rows = fetch_data.fetch(count)
             # ★ 必须先体检再落盘：历史上出现过「蓝球列错位」污染整个数据集，
             #   一旦写入会静默毁掉全部走势分析与回测结论。
             warns = fetch_data.sanity_check(rows)
