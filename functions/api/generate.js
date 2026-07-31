@@ -2,7 +2,9 @@
 // 请求体：{ strategy, count, dedupe, blueCover, shapeFilter }
 // 对应 py/app.py._generate
 import { generateNumbers, shapeOf } from "../../engine.js";
-import { loadDraws, json } from "./_common.js";
+import { loadDraws, json, preflight } from "./_common.js";
+
+export const onRequestOptions = () => preflight();
 
 export async function onRequestPost(context) {
   try {

@@ -5,7 +5,9 @@
 // 刷新成功后写入 KV，后续 /api/trend、/api/generate 会优先使用更新后的数据。
 // 若未绑定 KV，则仅返回本次抓取结果（静态样本不变），便于本地/预览环境先验证抓取链路。
 import { fetchLatest, sanityCheck, toCSV, validateLimit } from "./fetch_data.js";
-import { json } from "./_common.js";
+import { json, preflight } from "./_common.js";
+
+export const onRequestOptions = () => preflight();
 
 export async function onRequestGet(context) {
   try {

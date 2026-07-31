@@ -1,6 +1,8 @@
 // GET /api/trend —— 走势摘要（热号/冷号/区间/每号频率遗漏/形态统计）
 import { TrendAnalyzer, STRATEGIES, STRATEGY_DESC } from "../../engine.js";
-import { loadDraws, json } from "./_common.js";
+import { loadDraws, json, preflight } from "./_common.js";
+
+export const onRequestOptions = () => preflight();
 
 export async function onRequest(context) {
   try {

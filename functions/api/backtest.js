@@ -2,7 +2,9 @@
 // 请求体：{ strategy, count, periods, blueCover, shapeFilter }
 // 对应 py/app.py._backtest
 import { backtest } from "../../engine.js";
-import { loadDraws, json } from "./_common.js";
+import { loadDraws, json, preflight } from "./_common.js";
+
+export const onRequestOptions = () => preflight();
 
 export async function onRequestPost(context) {
   try {

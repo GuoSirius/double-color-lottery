@@ -65,14 +65,29 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "SSQ-Web/1.0"
 
     # ---------- 通用工具 ----------
+    def _send_cors(self) -> None:
+        # 跨域头：允许打包后的 App（Capacitor / 鸿蒙 WebView）从本地源调用本接口。
+        # 生产如需收敛，可将 "*" 改为具体来源。
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
     def _send_json(self, obj, code: int = 200) -> None:
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self._send_cors()
         self.end_headers()
         self.wfile.write(body)
+
+    def do_OPTIONS(self):
+        # 预检响应：浏览器跨域 POST/带自定义头时会先发 OPTIONS 探路
+        self.send_response(204)
+        self._send_cors()
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def _serve_index(self) -> None:
         try:
@@ -85,14 +100,19 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        self._send_cors()
         self.end_headers()
         self.wfile.write(body)
 
     def _serve_static(self, name: str) -> None:
-        # 仅放行白名单静态资源（favicon），杜绝目录穿越
+        # 仅放行白名单静态资源（favicon / PWA 资源），杜绝目录穿越
         allowed = {
             "favicon.ico": "image/x-icon",
             "favicon.svg": "image/svg+xml",
+            "icon-192.png": "image/png",
+            "icon-512.png": "image/png",
+            "manifest.webmanifest": "application/manifest+json",
+            "sw.js": "application/javascript",
         }
         if name not in allowed:
             self._send_json({"error": "not found"}, 404)
@@ -108,6 +128,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", allowed[name])
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "public, max-age=86400")
+        self._send_cors()
         self.end_headers()
         self.wfile.write(body)
 
@@ -119,7 +140,7 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in ("/", "/index.html"):
             self._serve_index()
-        elif path in ("/favicon.ico", "/favicon.svg"):
+        elif path in ("/favicon.ico", "/favicon.svg", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest", "/sw.js"):
             self._serve_static(path[1:])
         elif path == "/api/trend":
             self._send_json(self._trend())
