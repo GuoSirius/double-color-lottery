@@ -15,6 +15,11 @@
     --text: #e7ecf5; --muted: #9aa7bd; --red: #ef4444; --blue: #3b82f6;
     --accent: #8b5cf6; --hot: #f87171; --warm: #fbbf24; --cold: #60a5fa;
     --shadow: 0 10px 40px rgba(0,0,0,.45);
+    /* 间距量表：PC 基准；移动端在 @media(max-width:860px) 内收窄，实现 PC/移动端差异化 */
+    --gap-section: 20px;  /* 板块与卡片之间的主间距 */
+    --gap-card: 20px;     /* 卡片内边距 */
+    --gap-block: 16px;    /* 卡片内块级元素（字段/策略组）间距 */
+    --gap-sm: 12px;       /* 小间距（标题下、行内组、提示条） */
   }
   [data-theme="light"] {
     --bg: #eef1f8; --bg2: #e3e8f5; --panel: rgba(255,255,255,.72);
@@ -31,10 +36,10 @@
     min-height: 100vh; overflow-x: hidden; transition: background .4s ease, color .3s ease;
   }
   #bg-canvas { position: fixed; inset: 0; z-index: 0; pointer-events: none; opacity: .5; }
-  .wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+  .wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 24px 20px 52px; }
 
   /* 顶栏 */
-  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: var(--gap-section); }
   .brand { display: flex; align-items: center; gap: 12px; }
   .brand .logo {
     width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center;
@@ -53,15 +58,15 @@
 
   .disclaimer {
     background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
-    padding: 11px 16px; font-size: 12.5px; color: var(--muted); margin-bottom: 22px; line-height: 1.6;
+    padding: 11px 16px; font-size: 12.5px; color: var(--muted); margin-bottom: var(--gap-section); line-height: 1.6;
   }
   .disclaimer b { color: var(--warm); }
 
-  .grid { display: grid; grid-template-columns: 360px 1fr; gap: 22px; align-items: start; margin-top: 22px; }
+  .grid { display: grid; grid-template-columns: 360px 1fr; gap: var(--gap-section); align-items: start; margin-top: var(--gap-section); }
   @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
 
   /* 内容列：PC 右栏 / 移动端单列，内部顺序与控件一致（结果→走势→回测） */
-  .content-col { display: flex; flex-direction: column; gap: 22px; }
+  .content-col { display: flex; flex-direction: column; gap: var(--gap-section); }
 
   /* 可折叠卡片 */
   .collapsible-head { cursor: pointer; user-select: none; }
@@ -72,6 +77,12 @@
   /* 移动端底部固定操作栏（生成/回测/复制，PC 隐藏） */
   .mobile-bar { display: none; }
   @media (max-width: 860px) {
+    :root {
+      --gap-section: 13px;  /* 移动端板块间距收窄 */
+      --gap-card: 16px;     /* 移动端卡片内边距收窄 */
+      --gap-block: 13px;    /* 移动端卡片内块级间距收窄 */
+      --gap-sm: 10px;       /* 移动端小间距收窄 */
+    }
     /* 顶部控件栏里被底部栏代劳的动作按钮在移动端隐藏，避免重复 */
     #genBtn, #copyBtn, #btBtn, #refreshBtn, #rowRefreshCopy { display: none; }
     .mobile-bar {
@@ -93,18 +104,18 @@
       background: linear-gradient(135deg, var(--red), var(--blue));
     }
     /* 内容留出底部栏空间，避免遮挡（含刘海屏/底部安全区） */
-    .wrap { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+    .wrap { padding: 18px 14px calc(84px + env(safe-area-inset-bottom, 0px)); }
   }
 
   .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 18px;
-    padding: 20px; backdrop-filter: blur(14px); box-shadow: var(--shadow);
+    padding: var(--gap-card); backdrop-filter: blur(14px); box-shadow: var(--shadow);
   }
-  .card h2 { font-size: 15px; margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
+  .card h2 { font-size: 15px; margin: 0 0 var(--gap-sm); display: flex; align-items: center; gap: 8px; }
   .card h2 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 
   /* 策略选择 */
-  .strategies { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .strategies { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: var(--gap-block); }
   .strat {
     border: 1px solid var(--border); background: var(--panel-strong); color: var(--text);
     padding: 12px 10px; border-radius: 13px; cursor: pointer; text-align: center;
@@ -116,7 +127,7 @@
   .strat.active { border-color: var(--accent); background: linear-gradient(135deg, rgba(139,92,246,.22), rgba(59,130,246,.16)); box-shadow: 0 6px 22px rgba(139,92,246,.28); }
 
   /* 注数 */
-  .field { margin-bottom: 20px; }
+  .field { margin-bottom: var(--gap-block); }
   .field label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 8px; }
   .stepper { display: flex; align-items: center; gap: 10px; }
   .stepper button {
@@ -144,9 +155,9 @@
   }
   .gen-btn:hover { transform: translateY(-2px); filter: brightness(1.08); }
   .gen-btn:disabled { opacity: .6; cursor: progress; transform: none; }
-  .row2 { display: flex; gap: 10px; margin-top: 12px; }
+  .row2 { display: flex; gap: 10px; margin-top: var(--gap-sm); }
   /* 选号设置卡片内：裸 div 块（刷新期数/回测期数）紧跟按钮后缺上边距，补一致节奏 */
-  .gen-btn + div, .row2 + div { margin-top: 18px; }
+  .gen-btn + div, .row2 + div { margin-top: var(--gap-block); }
   .ghost-btn {
     flex: 1; padding: 11px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;
     background: var(--panel); color: var(--text); font-size: 13px; transition: .2s;
@@ -155,7 +166,7 @@
   .ghost-btn:disabled { opacity: .6; cursor: progress; }
 
   /* 走势 */
-  .section-title { font-size: 13px; color: var(--muted); margin: 18px 0 10px; }
+  .section-title { font-size: 13px; color: var(--muted); margin: var(--gap-block) 0 var(--gap-sm); }
   .balls { display: flex; flex-wrap: wrap; gap: 6px; }
   .ball {
     width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
@@ -184,7 +195,7 @@
   .bar > i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--red), var(--blue)); }
 
   /* 结果 */
-  .results { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  .results { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: var(--gap-sm); }
   @media (max-width: 560px) { .results { grid-template-columns: 1fr; } }
   .ticket {
     background: var(--panel-strong); border: 1px solid var(--border); border-radius: 14px; padding: 13px 14px;
@@ -204,7 +215,7 @@
 
   .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 30px 0; }
   .status { font-size: 12.5px; color: var(--muted); min-height: 18px; }
-  .status-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; min-height: 18px; }
+  .status-row { display: flex; align-items: center; gap: 8px; margin-top: var(--gap-sm); min-height: 18px; }
   .spin {
     width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto;
     border: 2px solid var(--border); border-top-color: var(--accent);
@@ -242,7 +253,7 @@
 
   /* 保底提示条 */
   .guarantee {
-    display: none; align-items: center; gap: 10px; margin-top: 14px; padding: 12px 14px;
+    display: none; align-items: center; gap: 10px; margin-top: var(--gap-sm); padding: 12px 14px;
     border-radius: 13px; font-size: 12.5px; line-height: 1.55;
     border: 1px solid rgba(34,197,94,.4); background: rgba(34,197,94,.1);
   }
@@ -261,7 +272,7 @@
   .ticket .nums { min-width: 0; }
 
   /* 回测 */
-  .bt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px,1fr)); gap: 10px; margin-bottom: 14px; }
+  .bt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px,1fr)); gap: 10px; margin-bottom: var(--gap-sm); }
   .bt-cell {
     background: var(--panel-strong); border: 1px solid var(--border); border-radius: 13px; padding: 12px 13px;
   }
@@ -276,7 +287,7 @@
   }
   .lv b { color: var(--accent); }
   .note {
-    font-size: 11.5px; color: var(--muted); line-height: 1.65; margin-top: 12px;
+    font-size: 11.5px; color: var(--muted); line-height: 1.65; margin-top: var(--gap-sm);
     padding-top: 11px; border-top: 1px dashed var(--border);
   }
 
@@ -294,7 +305,7 @@
   .ramt { font-size: 13px; line-height: 1.5; }
   .amt.fixed { font-weight: 800; color: var(--text); }
   .amt.float { color: var(--warm); font-weight: 700; }
-  .rules-tips { font-size: 11.5px; color: var(--muted); line-height: 1.7; margin-top: 12px; padding-top: 11px; border-top: 1px dashed var(--border); }
+  .rules-tips { font-size: 11.5px; color: var(--muted); line-height: 1.7; margin-top: var(--gap-sm); padding-top: 11px; border-top: 1px dashed var(--border); }
   .rules-tips li { margin-bottom: 4px; }
   @media (max-width: 560px) {
     .rule-row { grid-template-columns: 46px 1fr; }
