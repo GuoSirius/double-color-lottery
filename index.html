@@ -128,7 +128,7 @@
 
   /* 注数 */
   .field { margin-bottom: var(--gap-block); }
-  .field label { font-size: 13px; color: var(--muted); display: block; margin-bottom: var(--gap-sm); }
+  .field-label { font-size: 13px; color: var(--muted); display: block; margin-bottom: var(--gap-sm); }
   .stepper { display: flex; align-items: center; gap: 10px; }
   .stepper button {
     width: 38px; height: 38px; border-radius: 11px; border: 1px solid var(--border);
@@ -356,7 +356,7 @@
       </div>
 
       <div class="field">
-        <label>增强选项</label>
+        <label class="field-label">增强选项</label>
         <div class="toggle" id="tgCover" data-k="blueCover">
           <div class="sw"></div>
           <div>
@@ -374,7 +374,7 @@
       </div>
 
       <div class="field">
-        <label>生成注数（1–200）</label>
+        <label class="field-label">生成注数（1–200）</label>
         <div class="stepper">
           <button id="minus">−</button>
           <input id="count" type="number" min="1" max="200" value="5" />
@@ -391,7 +391,7 @@
 
       <button class="gen-btn" id="genBtn">生 成 号 码<span class="btn-spin"></span></button>
       <div>
-        <label>刷新历史期数（5–99999）</label>
+        <label class="field-label">刷新历史期数（5–99999）</label>
         <div class="stepper">
           <button id="histMinus">−</button>
           <input id="histCount" type="number" min="5" max="99999" step="1" value="500" />
@@ -403,7 +403,7 @@
         <button class="ghost-btn" id="copyBtn">📋 复制结果<span class="btn-spin"></span></button>
       </div>
       <div>
-        <label>回测期数（5–1000）</label>
+        <label class="field-label">回测期数（5–1000）</label>
         <div class="stepper">
           <button id="btMinus">−</button>
           <input id="btPeriods" type="number" min="5" max="1000" step="10" value="200" />
