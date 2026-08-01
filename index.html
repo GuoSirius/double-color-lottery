@@ -321,11 +321,12 @@
     但成本 32 元、保底回 5 元，这是<b>提高中奖率，不是提高收益</b>。所有结论都可以用下方「历史回测」自行验证。请理性购彩。
   </div>
 
-  <div class="card" id="rulesCard">
-    <h2><span class="dot"></span>中奖规则与奖金
+  <div class="card collapsible collapsed" id="rulesCard">
+    <h2 class="collapsible-head"><span class="dot"></span>中奖规则与奖金
       <span id="rulesMeta" style="margin-left:auto;color:var(--muted);font-weight:400;font-size:12px;"></span>
+      <span class="chev">▾</span>
     </h2>
-    <div id="rulesBody"><div class="empty">规则加载中…</div></div>
+    <div class="collapsible-body"><div id="rulesBody"><div class="empty">规则加载中…</div></div></div>
   </div>
 
   <div class="grid">
@@ -408,10 +409,12 @@
     <!-- 内容区：结果 → 走势 → 回测（PC 右栏 / 移动端单列，顺序与控件一致） -->
     <div class="content-col">
 
-      <div class="card">
-        <h2><span class="dot"></span>生成结果</h2>
-        <div class="guarantee" id="guarantee"></div>
-        <div id="results"><div class="empty">点击「生成号码」查看结果</div></div>
+      <div class="card collapsible" id="resultCard">
+        <h2 class="collapsible-head"><span class="dot"></span>生成结果<span class="chev">▾</span></h2>
+        <div class="collapsible-body">
+          <div class="guarantee" id="guarantee"></div>
+          <div id="results"><div class="empty">点击「生成号码」查看结果</div></div>
+        </div>
       </div>
 
       <div class="card collapsible" id="trendCard">
@@ -642,6 +645,7 @@ $('#genBtn').onclick = async () => {
     lastNumbers = d.numbers;
     renderResults(d.numbers);
     renderGuarantee(d);
+    $('#resultCard').classList.remove('collapsed');
     const tags = [LABELS[d.strategy]];
     if (d.blueCover) tags.push('蓝球覆盖');
     if (d.shapeFilter) tags.push('形态过滤');
