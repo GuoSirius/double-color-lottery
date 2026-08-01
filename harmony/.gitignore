@@ -1,6 +1,7 @@
 node_modules/
 oh_modules/
 build/
+.hvigor/
 *.hap
 *.hsp
 *.app
