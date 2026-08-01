@@ -1,8 +1,8 @@
 // 双色球工具 Service Worker
 // 策略：
 //  - 应用外壳静态资源（图标/清单）走 cache-first（离线可用）
-//  - HTML（/ 与 /index.html）走 network-first：在线永远取最新，离线回退缓存
-//    （避免改了 index.html 后 PWA 一直显示旧缓存）
+//  - HTML（/ 与 /index.html）与规则数据（/rules.json）走 network-first：
+//    在线永远取最新，离线回退缓存（避免改了 index.html / rules.json 后 PWA 一直显示旧内容）
 //  - API 请求直连网络不缓存
 const CACHE = 'ssq-shell-v2';
 const SHELL = [
@@ -14,8 +14,8 @@ const SHELL = [
   '/icon-512.png',
   '/manifest.webmanifest',
 ];
-// HTML 路由：network-first，保证内容更新即时生效
-const HTML_ROUTES = ['/', '/index.html'];
+// 内容路由：network-first，保证内容/规则更新即时生效
+const FRESH_ROUTES = ['/', '/index.html', '/rules.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -40,8 +40,8 @@ self.addEventListener('fetch', (event) => {
   // 仅处理同源资源
   if (url.origin !== self.location.origin) return;
 
-  // HTML：network-first，在线取最新，离线回退缓存
-  if (HTML_ROUTES.includes(url.pathname)) {
+  // HTML 与规则数据：network-first，在线取最新，离线回退缓存
+  if (FRESH_ROUTES.includes(url.pathname)) {
     event.respondWith(
       fetch(req)
         .then((resp) => {

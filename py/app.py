@@ -113,6 +113,7 @@ class Handler(BaseHTTPRequestHandler):
             "icon-512.png": "image/png",
             "manifest.webmanifest": "application/manifest+json",
             "sw.js": "application/javascript",
+            "rules.json": "application/json",
         }
         if name not in allowed:
             self._send_json({"error": "not found"}, 404)
@@ -140,7 +141,7 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in ("/", "/index.html"):
             self._serve_index()
-        elif path in ("/favicon.ico", "/favicon.svg", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest", "/sw.js"):
+        elif path in ("/favicon.ico", "/favicon.svg", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest", "/sw.js", "/rules.json"):
             self._serve_static(path[1:])
         elif path == "/api/trend":
             self._send_json(self._trend())

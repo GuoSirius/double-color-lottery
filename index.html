@@ -277,6 +277,27 @@
     font-size: 11.5px; color: var(--muted); line-height: 1.65; margin-top: 12px;
     padding-top: 11px; border-top: 1px dashed var(--border);
   }
+
+  /* 中奖规则与奖金 */
+  .rules-table { display: flex; flex-direction: column; gap: 8px; }
+  .rule-row {
+    display: grid; grid-template-columns: 54px 1fr 1.15fr; gap: 14px; align-items: center;
+    padding: 11px 13px; border: 1px solid var(--border); border-radius: 13px;
+    background: var(--panel-strong); transition: transform .2s, border-color .2s;
+  }
+  .rule-row:hover { transform: translateY(-1px); border-color: var(--accent); }
+  .rlv { font-weight: 800; font-size: 15px; text-align: center; color: var(--accent); }
+  .rm-code { font-weight: 800; font-size: 14px; letter-spacing: .5px; }
+  .rm-desc { font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.5; }
+  .ramt { font-size: 13px; line-height: 1.5; }
+  .amt.fixed { font-weight: 800; color: var(--text); }
+  .amt.float { color: var(--warm); font-weight: 700; }
+  .rules-tips { font-size: 11.5px; color: var(--muted); line-height: 1.7; margin-top: 12px; padding-top: 11px; border-top: 1px dashed var(--border); }
+  .rules-tips li { margin-bottom: 4px; }
+  @media (max-width: 560px) {
+    .rule-row { grid-template-columns: 46px 1fr; }
+    .ramt { grid-column: 1 / -1; margin-top: 6px; }
+  }
 </style>
 </head>
 <body>
@@ -298,6 +319,13 @@
     走势、冷热、形态都只影响号码"长什么样"，不影响中不中。<br>
     本工具唯一<b>数学上确定有效</b>的功能是「🛡️ 蓝球全覆盖」——买满 16 注覆盖全部蓝球，可保证<b>每期至少中 1 注六等奖（5 元）</b>。
     但成本 32 元、保底回 5 元，这是<b>提高中奖率，不是提高收益</b>。所有结论都可以用下方「历史回测」自行验证。请理性购彩。
+  </div>
+
+  <div class="card" id="rulesCard">
+    <h2><span class="dot"></span>中奖规则与奖金
+      <span id="rulesMeta" style="margin-left:auto;color:var(--muted);font-weight:400;font-size:12px;"></span>
+    </h2>
+    <div id="rulesBody"><div class="empty">规则加载中…</div></div>
   </div>
 
   <div class="grid">
@@ -515,6 +543,45 @@ $('#plus').onclick = () => setCount(Math.min(200, (+countEl.value || 1) + 1));
 $('#quick').addEventListener('click', (e) => { if (e.target.dataset.n) setCount(+e.target.dataset.n); });
 countEl.oninput = () => { let v = Math.max(1, Math.min(200, +countEl.value || 1)); };
 function setCount(n) { countEl.value = n; }
+
+/* ---------- 中奖规则与奖金（数据驱动：官方改规则只更新 rules.json 即自动同步） ---------- */
+async function loadRules() {
+  try {
+    const r = await fetch(API_BASE + '/rules.json', { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    renderRules(data);
+  } catch (e) {
+    const b = $('#rulesBody');
+    if (b) b.innerHTML = '<div class="empty">规则加载失败：' + ((e && e.message) || '') + '</div>';
+  }
+}
+function renderRules(data) {
+  const tiers = data.tiers || [];
+  const meta = data.meta || {};
+  if (meta.updated) $('#rulesMeta').textContent = '更新于 ' + meta.updated;
+  const amt = (t) => t.type === '固定'
+    ? '<span class="amt fixed">' + Number(t.amount).toLocaleString('zh-CN') + ' 元/注</span>'
+    : '<span class="amt float">' + (t.rule || '浮动奖金') + '</span>';
+  let html = '<div class="rules-table">';
+  html += tiers.map((t) =>
+    '<div class="rule-row">' +
+      '<div class="rlv">' + t.level + '奖</div>' +
+      '<div class="rmatch"><div class="rm-code">' + t.match + '</div>' +
+      '<div class="rm-desc">' + t.matchDesc + '</div></div>' +
+      '<div class="ramt">' + amt(t) + '</div>' +
+    '</div>'
+  ).join('');
+  html += '</div>';
+  const tips = data.tips || [];
+  if (tips.length) html += '<ul class="rules-tips">' + tips.map((s) => '<li>' + s + '</li>').join('') + '</ul>';
+  if (meta.note) {
+    html += '<div class="note">' + meta.note +
+      (meta.source ? '<br>数据来源：<a href="' + meta.source + '" target="_blank" rel="noopener">' + meta.source + '</a>' : '') +
+      '</div>';
+  }
+  $('#rulesBody').innerHTML = html;
+}
 
 /* ---------- 走势 ---------- */
 async function loadTrend() {
@@ -789,6 +856,7 @@ if ('serviceWorker' in navigator) {
 }
 
 loadTrend();
+loadRules();
 </script>
 </body>
 </html>
