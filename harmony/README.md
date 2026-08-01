@@ -75,7 +75,8 @@
 
 | 现象 | 处理 |
 |------|------|
-| 打开工程后 Sync 失败 | 通常是 DevEco 版本与工程 SDK 版本不匹配。本工程已适配 **DevEco 6.1.1.300 / SDK 6.1.1(24)**；若你装的是其他版本，打开 `build-profile.json5` 把 `compileSdkVersion` / `compatibleSdkVersion` / `targetSdkVersion` 改成你本机 SDK Manager 里实际装的版本 |
+| 打开工程后 Sync 失败 | 通常是 DevEco 版本与工程 SDK 版本不匹配。本工程已适配 **DevEco 6.1.1.300 / SDK 6.1.1(24)**；若你装的是其他版本，只需把 `build-profile.json5` 里 `products[].compatibleSdkVersion` 改成你本机 SDK 实际版本（格式 `"<平台版本>(<API>)",如 "6.1.1(24)"`）。**注意：HarmonyOS 下 `compileSdkVersion` / `targetSdkVersion` 不要显式写**，DevEco 会自动用内置 SDK；显式写反而报「值不正确」 |
+| 弹窗「未配置 targetSdkVersion / 值不正确」 | 这是 DevEco 的正常确认提示。点「确定」让它自动用默认值即可——**千万不要点「自动设置为 1」**，也不要手动把 `targetSdkVersion` 写成数字或 `"1"`，那会直接 Sync 失败。正确状态是 `products` 里只留 `compatibleSdkVersion`，不含 `targetSdkVersion`/`compileSdkVersion` |
 | 点 Run 提示「no device」 | 先连真机或启动模拟器（Device Manager） |
 | 签名报错 | 确认已登录华为账号且**实名认证**；重做第 3 步「自动生成签名」 |
 | App 打开白屏 | 手机要能访问 `ssq-cloudflare-em8.pages.dev`（网站本身要能打开） |

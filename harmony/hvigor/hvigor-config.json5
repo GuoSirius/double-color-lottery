@@ -12,5 +12,5 @@
   "debugging": {
     "stacktrace": false
   },
-  "nodeOptions": ""
+  "nodeOptions": {}
 }
