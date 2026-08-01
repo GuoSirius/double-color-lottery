@@ -271,7 +271,9 @@ class Handler(BaseHTTPRequestHandler):
             draws = _load()
             # 防止历史过多（如刷新拉取上万期）导致回测 O(n^2) 过慢：
             # 最近 periods 期回测只需最近 (periods + min_train) 期数据，更早的期数不会影响结果。
-            min_train_eff = min(200, max(50, len(draws) - periods))
+            # min_train 优先满足用户指定的回测期数：训练窗 = min(默认50, 可用数据 - 回测期数)，至少保留 1 期训练。
+            _DEFAULT_MIN_TRAIN = 50
+            min_train_eff = min(_DEFAULT_MIN_TRAIN, max(1, len(draws) - periods))
             need = periods + min_train_eff
             if len(draws) > need:
                 draws = draws[-need:]

@@ -40,7 +40,9 @@ export async function onRequestPost(context) {
     const draws = await loadDraws(context);
     // 防止 KV/静态历史过多（如刷新型拉取了上万期）导致回测 O(n^2) 触发 Cloudflare CPU 限额：
     // 最近 periods 期回测只需最近 (periods + minTrain) 期数据，更早的期数不会影响结果。
-    const minTrain = Math.min(200, Math.max(50, draws.length - periods));
+    // minTrain 优先满足用户指定的回测期数：训练窗 = min(默认50, 可用数据 - 回测期数)，至少保留 1 期训练。
+    const DEFAULT_MIN_TRAIN = 50;
+    const minTrain = Math.min(DEFAULT_MIN_TRAIN, Math.max(1, draws.length - periods));
     const need = periods + minTrain;
     const used = draws.length > need ? draws.slice(draws.length - need) : draws;
     const r = backtest(used, {
