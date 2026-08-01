@@ -394,7 +394,7 @@
         <label class="field-label">刷新历史期数（5–99999）</label>
         <div class="stepper">
           <button id="histMinus">−</button>
-          <input id="histCount" type="number" min="5" max="99999" step="1" value="500" />
+          <input id="histCount" type="number" min="5" max="99999" step="1" value="50" />
           <button id="histPlus">＋</button>
         </div>
       </div>
@@ -406,7 +406,7 @@
         <label class="field-label">回测期数（5–1000）</label>
         <div class="stepper">
           <button id="btMinus">−</button>
-          <input id="btPeriods" type="number" min="5" max="1000" step="10" value="200" />
+          <input id="btPeriods" type="number" min="5" max="1000" step="10" value="20" />
           <button id="btPlus">＋</button>
         </div>
       </div>
@@ -606,6 +606,7 @@ async function loadTrend() {
   try {
     const d = await apiJson(API_BASE + '/api/trend');
     if (!d.ok) { $('#trendN').textContent = '（数据加载失败）'; return; }
+    window.__latestDrawDate = d.latest ? d.latest.date : null;
     $('#trendN').textContent = `· 基于 ${d.n} 期历史`;
     $('#hotRed').innerHTML = d.hot.map(([n,c]) => `<div class="rank-item hot"><span class="num">${pad(n)}</span><span>出现${c}次</span></div>`).join('');
     $('#coldRed').innerHTML = d.cold.map(([n,o]) => `<div class="rank-item cold"><span class="num">${pad(n)}</span><span>遗漏${o}期</span></div>`).join('');
@@ -703,8 +704,8 @@ function renderGuarantee(d) {
 }
 
 /* ---------- 回测期数步进 ---------- */
-$('#btMinus').onclick = () => { const el = $('#btPeriods'); el.value = Math.max(5, (parseInt(el.value, 10) || 200) - 10); };
-$('#btPlus').onclick = () => { const el = $('#btPeriods'); el.value = Math.min(1000, (parseInt(el.value, 10) || 200) + 10); };
+$('#btMinus').onclick = () => { const el = $('#btPeriods'); el.value = Math.max(5, (parseInt(el.value, 10) || 20) - 10); };
+$('#btPlus').onclick = () => { const el = $('#btPeriods'); el.value = Math.min(1000, (parseInt(el.value, 10) || 20) + 10); };
 
 /* 实时校验回测期数：必须是 5–1000 之间的正整数（拒绝小数/字母/负数/越界） */
 $('#btPeriods').addEventListener('input', () => {
@@ -808,7 +809,7 @@ $('#copyBtn').onclick = async () => {
 
 /* ---------- 刷新历史期数步进 ---------- */
 $('#histMinus').onclick = () => { const el = $('#histCount'); el.value = Math.max(5, (parseInt(el.value, 10) || 5) - 1); };
-$('#histPlus').onclick = () => { const el = $('#histCount'); el.value = Math.min(99999, (parseInt(el.value, 10) || 500) + 1); };
+$('#histPlus').onclick = () => { const el = $('#histCount'); el.value = Math.min(99999, (parseInt(el.value, 10) || 50) + 1); };
 
 /* 实时校验历史期数：必须是 5–99999 之间的正整数 */
 $('#histCount').addEventListener('input', () => {
@@ -817,20 +818,64 @@ $('#histCount').addEventListener('input', () => {
 });
 
 /* ---------- 更新数据 ---------- */
-$('#refreshBtn').onclick = async () => {
-  if (apiBusy) return;
-  const res = parsePositiveIntInRange($('#histCount').value, 5, 99999, '历史期数');
-  if (!res.ok) { $('#status').textContent = res.error; $('#histCount').classList.add('invalid'); return; }
-  $('#histCount').classList.remove('invalid');
-  const count = res.value;
-  setBusy(true, `正在刷新最新 ${count} 期开奖数据…`);
+const AUTO_REFRESH_KEY = 'ssq_auto_refresh_for';
+
+function fmtYMD(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+// 双色球开奖日：周日(0)、周二(2)、周四(4)。返回「截至现在应该已公布的最新一期开奖日期」。
+// 若今天本身是开奖日且未到 22:00（开奖+公布约 21:30），视为该期尚未公布，从上一开奖日算起。
+function getExpectedLatestDrawDateStr(now) {
+  const DRAW_DAYS = [0, 2, 4];
+  const d = new Date(now);
+  if (DRAW_DAYS.includes(d.getDay()) && d.getHours() < 22) d.setDate(d.getDate() - 1);
+  for (let i = 0; i < 8; i++) {
+    if (DRAW_DAYS.includes(d.getDay())) break;
+    d.setDate(d.getDate() - 1);
+  }
+  return fmtYMD(d);
+}
+
+async function doRefresh(count, { silent = false } = {}) {
+  if (apiBusy) return false;
+  const res = parsePositiveIntInRange(String(count), 5, 99999, '历史期数');
+  if (!res.ok) { if (!silent) $('#status').textContent = res.error; return false; }
+  const n = res.value;
+  setBusy(true, silent ? `正在自动更新历史数据（${n} 期）…` : `正在刷新最新 ${n} 期开奖数据…`);
   try {
-    const d = await apiJson(API_BASE + '/api/refresh?count=' + count);
-    if (d.ok) { $('#status').textContent = `数据已更新，共 ${d.count} 期（请求 ${d.requested ?? count ?? '—'} 期）`; loadTrend(); }
-    else $('#status').textContent = '刷新失败：' + d.error;
-  } catch (e) { $('#status').textContent = '刷新出错：' + e.message; }
+    const d = await apiJson(API_BASE + '/api/refresh?count=' + n);
+    if (d.ok) {
+      if (!silent) $('#status').textContent = `数据已更新，共 ${d.count} 期（请求 ${d.requested ?? n} 期）`;
+      await loadTrend();
+      return true;
+    }
+    if (!silent) $('#status').textContent = '刷新失败：' + d.error;
+    return false;
+  } catch (e) { if (!silent) $('#status').textContent = '刷新出错：' + e.message; return false; }
   finally { setBusy(false); }
-};
+}
+
+$('#refreshBtn').onclick = () => doRefresh($('#histCount').value);
+
+/* 加载时按开奖日程自动检测数据新鲜度：若本地数据最新一期早于「应有的最新一期」，
+   则静默自动更新（如周一打开应含周日开奖）。已更新的窗口记到 localStorage，避免重复刷新；
+   数据已是最新则完全不打扰。 */
+async function maybeAutoRefresh(latestDateStr) {
+  const expected = getExpectedLatestDrawDateStr(new Date());
+  const stale = !latestDateStr || latestDateStr < expected;
+  if (!stale) { try { localStorage.removeItem(AUTO_REFRESH_KEY); } catch (_) {} return; }
+  let done = false;
+  try { done = localStorage.getItem(AUTO_REFRESH_KEY) === expected; } catch (_) {}
+  if (done) return;
+  const ok = await doRefresh($('#histCount').value, { silent: true });
+  if (ok) {
+    try { localStorage.setItem(AUTO_REFRESH_KEY, expected); } catch (_) {}
+    $('#status').textContent = '已自动更新至最新开奖数据';
+  }
+}
 
 /* ---------- 粒子背景 ---------- */
 (function () {
@@ -872,7 +917,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-loadTrend();
+loadTrend().then(() => maybeAutoRefresh(window.__latestDrawDate)).catch(() => {});
 loadRules();
 </script>
 </body>
