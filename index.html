@@ -157,7 +157,7 @@
   .gen-btn:disabled { opacity: .6; cursor: progress; transform: none; }
   .row2 { display: flex; gap: 10px; margin-top: var(--gap-sm); }
   /* 选号设置卡片内：裸 div 块（刷新期数/回测期数）紧跟按钮后缺上边距，补一致节奏 */
-  .gen-btn + div, .row2 + div { margin-top: var(--gap-block); }
+  .gen-btn + .field, .row2 + .field { margin-top: var(--gap-block); }
   .ghost-btn {
     flex: 1; padding: 11px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;
     background: var(--panel); color: var(--text); font-size: 13px; transition: .2s;
@@ -390,7 +390,7 @@
       </div>
 
       <button class="gen-btn" id="genBtn">生 成 号 码<span class="btn-spin"></span></button>
-      <div>
+      <div class="field">
         <label class="field-label">刷新历史期数（5–99999）</label>
         <div class="stepper">
           <button id="histMinus">−</button>
@@ -402,7 +402,7 @@
         <button class="ghost-btn" id="refreshBtn">🔄 更新数据<span class="btn-spin"></span></button>
         <button class="ghost-btn" id="copyBtn">📋 复制结果<span class="btn-spin"></span></button>
       </div>
-      <div>
+      <div class="field">
         <label class="field-label">回测期数（5–1000）</label>
         <div class="stepper">
           <button id="btMinus">−</button>
