@@ -57,7 +57,7 @@
   }
   .disclaimer b { color: var(--warm); }
 
-  .grid { display: grid; grid-template-columns: 360px 1fr; gap: 22px; align-items: start; }
+  .grid { display: grid; grid-template-columns: 360px 1fr; gap: 22px; align-items: start; margin-top: 22px; }
   @media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
 
   /* 内容列：PC 右栏 / 移动端单列，内部顺序与控件一致（结果→走势→回测） */
@@ -145,6 +145,8 @@
   .gen-btn:hover { transform: translateY(-2px); filter: brightness(1.08); }
   .gen-btn:disabled { opacity: .6; cursor: progress; transform: none; }
   .row2 { display: flex; gap: 10px; margin-top: 12px; }
+  /* 选号设置卡片内：裸 div 块（刷新期数/回测期数）紧跟按钮后缺上边距，补一致节奏 */
+  .gen-btn + div, .row2 + div { margin-top: 18px; }
   .ghost-btn {
     flex: 1; padding: 11px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer;
     background: var(--panel); color: var(--text); font-size: 13px; transition: .2s;
